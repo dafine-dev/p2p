@@ -22,6 +22,12 @@ func New(port int) *Messenger {
 		panic(err)
 	}
 
+	err = syscall.SetsockoptInt(sock, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+	if err != nil {
+		log.Println("Couldn't enable broadcast in UDP socket.")
+		panic(err)
+	}
+
 	return &Messenger{
 		socket:    sock,
 		incoming:  make(chan messages.Message),
