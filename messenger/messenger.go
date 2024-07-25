@@ -28,6 +28,11 @@ func New(port int) *Messenger {
 		panic(err)
 	}
 
+	addr := syscall.SockaddrInet4{
+		Port: 8080,
+	}
+	syscall.Bind(sock, &addr)
+
 	return &Messenger{
 		socket:    sock,
 		incoming:  make(chan messages.Message),
