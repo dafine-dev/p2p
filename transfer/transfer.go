@@ -13,7 +13,7 @@ type Transfer struct {
 	uploads       map[files.Hash]*stream
 }
 
-func NewTransfer(downloadLimit, uploadLimit int, cancelFlags []int) *Transfer {
+func New(downloadLimit, uploadLimit int) *Transfer {
 	return &Transfer{
 		downloadLimit: downloadLimit,
 		uploadLimit:   uploadLimit,

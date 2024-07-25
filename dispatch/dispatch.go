@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"log"
 	"p2p/files"
 	"p2p/messages"
 	"p2p/messenger"
@@ -51,6 +52,7 @@ func (d *Dispatch) Run() {
 }
 
 func (d *Dispatch) OnBeginJoin(msg messages.Message) {
+	log.Println("Received message")
 	d.msger.Send(messages.AnswerJoin(), messages.Addr(msg))
 }
 

@@ -2,8 +2,10 @@ package messenger
 
 import (
 	"fmt"
+	"log"
 	"p2p/messages"
 	"syscall"
+	"time"
 )
 
 type Socket = int
@@ -29,10 +31,12 @@ func New(port int) *Messenger {
 
 func (m *Messenger) Run() {
 	go m.listenLoop()
+	time.Sleep(time.Second)
 	go m.writeLoop()
 }
 
 func (m *Messenger) listenLoop() {
+	log.Println("Listening for UDP messages")
 	for {
 		buffer := make([]byte, 1024)
 		n, _, err := syscall.Recvfrom(m.socket, buffer[:], 0)
@@ -49,10 +53,11 @@ func (m *Messenger) listenLoop() {
 func (m *Messenger) writeLoop() {
 	for {
 		command := <-m.outcoming
+		log.Println("Writing UDP message")
 
-		err := syscall.Sendto(m.socket, command.message.Raw(), 0, &command.destAddr)
+		err := syscall.Sendto(m.socket, command.message, 0, &command.destAddr)
 		if err != nil {
-			fmt.Println("Falha ao enviar mensagem")
+			fmt.Println("Falha ao enviar mensagem", err)
 			continue
 		}
 	}
