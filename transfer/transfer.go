@@ -56,10 +56,11 @@ func (t *Transfer) Start(port int) {
 	}
 }
 
-func (t *Transfer) Download(name string, msg messages.Message) *stream {
+func (t *Transfer) Download(key files.Hash, msg messages.Message) *stream {
 	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 
-	if err = syscall.Connect(sock, msg.Addr()); err != nil {
+	addr := messages.Addr(msg)
+	if err = syscall.Connect(sock, &addr); err != nil {
 		panic(err)
 	}
 
@@ -69,14 +70,13 @@ func (t *Transfer) Download(name string, msg messages.Message) *stream {
 		panic(err)
 	}
 
-	rcv_msg, ok := messages.ReadFileRequest(answer[:n])
-	if !ok {
-		syscall.Write(sock, messages.NewFileNotFound(rcv_msg.Key()).Raw())
+	if messages.Method(answer[:n]) != messages.REQUEST_FILE {
+		syscall.Write(sock, messages.BrokenProtocol())
 		syscall.Close(sock)
 		return nil
 	}
 
-	file := files.New(name)
+	file, _ := files.Search(key)
 
 	s := &stream{
 		bufferSize: DEFAULT_BUFFER_SIZE,
@@ -98,17 +98,17 @@ func (t *Transfer) Upload(sock Socket, addr syscall.Sockaddr) {
 		return
 	}
 
-	msg, ok := messages.ReadFileRequest(buffer[:n])
-	if !ok {
+	msg := buffer[:n]
+	if messages.Method(msg) != messages.REQUEST_FILE {
 		syscall.Close(sock)
 		return
 	}
 
-	key := msg.Key()
+	key := messages.FileKey(msg)
 	file, found := files.Search(key)
 
 	if !found {
-		syscall.Write(sock, messages.NewFileNotFound(key).Raw())
+		syscall.Write(sock, messages.FileNotFound(key))
 		syscall.Close(sock)
 	} else {
 		s := &stream{

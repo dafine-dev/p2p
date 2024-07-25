@@ -5,13 +5,20 @@ import (
 	"os"
 )
 
+const (
+	SEARCHING uint8 = iota
+	DOWNLOADING
+	UPLOADING
+	FINISHED
+)
+
 type Hash = [160]byte
 
 type File struct {
 	os.File
 	Name   string
 	Key    Hash
-	Status int
+	Status uint8
 }
 
 var allFiles map[Hash]*File

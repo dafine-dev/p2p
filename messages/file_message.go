@@ -1,45 +1,37 @@
 package messages
 
-import "p2p/files"
+import (
+	"p2p/files"
+)
 
-type fileMessage struct {
-	defaultMessage
+func FileKey(msg Message) files.Hash {
+	return files.Hash(msg[5:165])
 }
 
-func (f fileMessage) Key() files.Hash {
-	return files.Hash(f.defaultMessage[5:165])
+func fileMessage(key files.Hash, method Code) Message {
+	msg := header(LOCAL_ADDR, method)
+	msg = append(msg, key[:]...)
+	return msg
 }
 
-func newFileMessage(key files.Hash, method Method) fileMessage {
-	data := make([]byte, 0)
-	data = append(data, LOCAL_ADDR.Addr[:]...)
-	data = append(data, method)
-	data = append(data, key[:]...)
-	return fileMessage{
-		defaultMessage: data,
-	}
+func RequestFile(key files.Hash) Message {
+	return fileMessage(key, REQUEST_FILE)
 }
 
-func NewFileRequest(key files.Hash) fileMessage {
-	return newFileMessage(key, FILE_REQUEST)
+func InsertFile(name string, key files.Hash) Message {
+	msg := fileMessage(key, INSERT_FILE)
+	msg = append(msg, name[:]...)
+	return msg
 }
 
-func ReadFileRequest(data []byte) (fileMessage, bool) {
-	if data[4] == FILE_REQUEST {
-		return fileMessage{}, false
-	} else {
-		return fileMessage{defaultMessage: data}, true
-	}
+func FileNotFound(key files.Hash) Message {
+	return fileMessage(key, FILE_NOT_FOUND)
 }
 
-func NewFileNotFound(key files.Hash) fileMessage {
-	return newFileMessage(key, FILE_NOT_FOUND)
+func LocateFile(key files.Hash) Message {
+	return fileMessage(key, LOCATE_FILE)
 }
 
-func ReadFileNotFound(data []byte) (fileMessage, bool) {
-	if data[4] == FILE_NOT_FOUND {
-		return fileMessage{}, false
-	} else {
-		return fileMessage{defaultMessage: data}, true
-	}
+func FileLocated(key files.Hash) Message {
+	return fileMessage(key, FILE_LOCATED)
 }

@@ -4,7 +4,7 @@ import (
 	"syscall"
 )
 
-type Method = uint8
+type Code = uint8
 
 var LOCAL_ADDR = syscall.SockaddrInet4{
 	Addr: [4]byte{0, 0, 0, 0},
@@ -12,39 +12,38 @@ var LOCAL_ADDR = syscall.SockaddrInet4{
 }
 
 const (
-	BEGIN_JOIN Method = iota
+	BEGIN_JOIN Code = iota
 	ANSWER_JOIN
 	CONFIRM_JOIN
 	LOCATE_FILE
 	REQUEST_FILE
 	FILE_NOT_FOUND
+	FILE_LOCATED
 	INSERT_FILE
 	LEAVE
+	BROKEN_PROTOCOL
 )
 
-type Message interface {
-	Addr() syscall.SockaddrInet4
-	Method() Method
-	Raw() []byte
-}
+type Message = []byte
 
-type defaultMessage []byte
-
-func (m defaultMessage) Addr() syscall.SockaddrInet4 {
+func Addr(msg Message) syscall.SockaddrInet4 {
 	return syscall.SockaddrInet4{
-		Addr: [4]byte(m[0:4]),
+		Addr: [4]byte(msg[0:4]),
 		Port: LOCAL_ADDR.Port,
 	}
 }
 
-func (m defaultMessage) Method() Method {
-	return m[4]
+func Method(msg Message) Code {
+	return uint8(msg[4])
 }
 
-func (m defaultMessage) Raw() []byte {
-	return m
+func header(addr syscall.SockaddrInet4, method Code) Message {
+	msg := make(Message, 0)
+	msg = append(msg, LOCAL_ADDR.Addr[:]...)
+	msg = append(msg, method)
+	return msg
 }
 
-func New(data []byte) defaultMessage {
-	return defaultMessage(data)
+func BrokenProtocol() Message {
+	return header(LOCAL_ADDR, BROKEN_PROTOCOL)
 }
