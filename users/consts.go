@@ -3,7 +3,7 @@ package users
 import "syscall"
 
 var user_table map[[4]byte]*user
-var CURRENT_USERNAME string
+var CURRENT_USERNAME string = "lucas =)"
 
 func New(addr syscall.SockaddrInet4, id UserID, name string) *user {
 	u := &user{

@@ -52,7 +52,7 @@ func (d *Dispatch) Run() {
 }
 
 func (d *Dispatch) OnBeginJoin(msg messages.Message) {
-	log.Println("Received message")
+	log.Println("Received message from: ", messages.Username(msg))
 	d.msger.Send(messages.AnswerJoin(), messages.Addr(msg))
 }
 
