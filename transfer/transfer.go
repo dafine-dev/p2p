@@ -3,6 +3,7 @@ package transfer
 import (
 	"p2p/files"
 	"p2p/messages"
+	"p2p/shared"
 	"syscall"
 )
 
@@ -22,15 +23,10 @@ func New(downloadLimit, uploadLimit int) *Transfer {
 	}
 }
 
-func (t *Transfer) Start(port int) {
+func (t *Transfer) Start(addr shared.Addr) {
 	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		panic(err)
-	}
-
-	addr := syscall.SockaddrInet4{
-		Addr: [4]byte{0, 0, 0, 0},
-		Port: port,
 	}
 
 	if err := syscall.Bind(sock, &addr); err != nil {
@@ -90,6 +86,7 @@ func (t *Transfer) Download(key files.Hash, msg messages.Message) *stream {
 }
 
 func (t *Transfer) Upload(sock Socket, addr syscall.Sockaddr) {
+func (t *Transfer) Upload(sock shared.Socket, addr syscall.Sockaddr) {
 
 	buffer := make([]byte, 1024)
 

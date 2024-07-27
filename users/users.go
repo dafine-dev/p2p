@@ -1,11 +1,11 @@
 package users
 
-import "syscall"
+import "p2p/shared"
 
 type UserID = [160]byte
 
 type user struct {
-	Addr syscall.SockaddrInet4
+	Addr shared.Addr
 	Id   UserID
 	Name string
 }

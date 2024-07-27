@@ -2,13 +2,14 @@ package transfer
 
 import (
 	"p2p/files"
+	"p2p/shared"
 	"sync"
 	"syscall"
 )
 
 type stream struct {
 	bufferSize  int
-	sock        Socket
+	sock        shared.Socket
 	file        *files.File
 	stopFlag    bool
 	bufferMutex sync.Mutex

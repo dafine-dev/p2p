@@ -1,11 +1,11 @@
 package users
 
-import "syscall"
+import "p2p/shared"
 
 var user_table map[[4]byte]*user
 var CURRENT_USERNAME string = "lucas =)"
 
-func New(addr syscall.SockaddrInet4, id UserID, name string) *user {
+func New(addr shared.Addr, id UserID, name string) *user {
 	u := &user{
 		Addr: addr,
 		Id:   id,

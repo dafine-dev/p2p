@@ -2,10 +2,10 @@ package messenger
 
 import (
 	"p2p/messages"
-	"syscall"
+	"p2p/shared"
 )
 
 type command struct {
 	message  messages.Message
-	destAddr syscall.SockaddrInet4
+	destAddr shared.Socket
 }

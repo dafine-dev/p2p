@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"log"
 	"p2p/messages"
+	"p2p/shared"
 	"syscall"
 	"time"
 )
 
-type Socket = int
-
 type Messenger struct {
-	socket    Socket
+	socket    shared.Socket
 	incoming  chan messages.Message
 	outcoming chan command
 }
