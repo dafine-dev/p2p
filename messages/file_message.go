@@ -1,37 +1,48 @@
 package messages
 
 import (
-	"p2p/files"
+	"p2p/shared"
 )
 
-func FileKey(msg Message) files.Hash {
-	return files.Hash(msg[5:165])
+func FileKey(msg Message) shared.HashKey {
+	return shared.HashKey(msg[5:25])
 }
 
-func fileMessage(key files.Hash, method Code) Message {
-	msg := header(LOCAL_ADDR, method)
+func FileLocation(msg Message) shared.Addr {
+	return shared.Addr{
+		Addr: [4]byte(msg[25:29]),
+		Port: shared.PORT,
+	}
+}
+
+func fileMessage(addr shared.Addr, key shared.HashKey, method Code) Message {
+	msg := header(addr, method)
 	msg = append(msg, key[:]...)
 	return msg
 }
 
-func RequestFile(key files.Hash) Message {
-	return fileMessage(key, REQUEST_FILE)
+func RequestFile(addr shared.Addr, key shared.HashKey) Message {
+	return fileMessage(addr, key, REQUEST_FILE)
 }
 
-func InsertFile(name string, key files.Hash) Message {
-	msg := fileMessage(key, INSERT_FILE)
-	msg = append(msg, name[:]...)
+func InsertFile(addr shared.Addr, key shared.HashKey) Message {
+	return fileMessage(addr, key, INSERT_FILE)
+}
+
+func FileNotFound(addr shared.Addr, key shared.HashKey) Message {
+	return fileMessage(addr, key, FILE_NOT_FOUND)
+}
+
+func LocateFile(addr shared.Addr, key shared.HashKey) Message {
+	return fileMessage(addr, key, LOCATE_FILE)
+}
+
+func FileLocated(addr shared.Addr, locAddr shared.Addr, key shared.HashKey) Message {
+	msg := fileMessage(addr, key, FILE_LOCATED)
+	msg = append(msg, locAddr.Addr[:]...)
 	return msg
 }
 
-func FileNotFound(key files.Hash) Message {
-	return fileMessage(key, FILE_NOT_FOUND)
-}
-
-func LocateFile(key files.Hash) Message {
-	return fileMessage(key, LOCATE_FILE)
-}
-
-func FileLocated(key files.Hash) Message {
-	return fileMessage(key, FILE_LOCATED)
+func File(addr shared.Addr, key shared.HashKey) Message {
+	return fileMessage(addr, key, FILE)
 }

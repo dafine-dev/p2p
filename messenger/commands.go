@@ -7,5 +7,5 @@ import (
 
 type command struct {
 	message  messages.Message
-	destAddr shared.Socket
+	destAddr shared.Addr
 }

@@ -6,18 +6,19 @@ import (
 	"p2p/messages"
 	"p2p/shared"
 	"syscall"
-	"time"
 )
 
 type Messenger struct {
 	socket    shared.Socket
 	incoming  chan messages.Message
 	outcoming chan command
+	addr      shared.Addr
 }
 
-func New(port int) *Messenger {
+func New(addr shared.Addr) *Messenger {
 	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 	if err != nil {
+		log.Println("Couldn't start")
 		panic(err)
 	}
 
@@ -27,32 +28,37 @@ func New(port int) *Messenger {
 		panic(err)
 	}
 
-	addr := syscall.SockaddrInet4{
-		Port: 8080,
-	}
 	syscall.Bind(sock, &addr)
 
 	return &Messenger{
 		socket:    sock,
 		incoming:  make(chan messages.Message),
 		outcoming: make(chan command),
+		addr:      addr,
 	}
 }
 
 func (m *Messenger) Run() {
 	go m.listenLoop()
-	time.Sleep(time.Second)
 	go m.writeLoop()
 }
 
 func (m *Messenger) listenLoop() {
-	log.Println("Listening for UDP messages")
 	for {
 		buffer := make([]byte, 1024)
-		n, _, err := syscall.Recvfrom(m.socket, buffer[:], 0)
+		n, addr, err := syscall.Recvfrom(m.socket, buffer[:], 0)
 
 		if err != nil {
 			fmt.Println("Leitura de pacote UDP falhou.")
+			continue
+		}
+
+		addrI4, ok := addr.(*syscall.SockaddrInet4)
+		if !ok {
+			continue
+		}
+
+		if addrI4.Addr == m.addr.Addr {
 			continue
 		}
 
@@ -63,7 +69,7 @@ func (m *Messenger) listenLoop() {
 func (m *Messenger) writeLoop() {
 	for {
 		command := <-m.outcoming
-		log.Println("Writing UDP message")
+		// log.Println("Writing UDP message")
 
 		err := syscall.Sendto(m.socket, command.message, 0, &command.destAddr)
 		if err != nil {
@@ -73,7 +79,7 @@ func (m *Messenger) writeLoop() {
 	}
 }
 
-func (m *Messenger) Send(msg messages.Message, to syscall.SockaddrInet4) {
+func (m *Messenger) Send(msg messages.Message, to shared.Addr) {
 	m.outcoming <- command{message: msg, destAddr: to}
 }
 

@@ -16,11 +16,11 @@ type stream struct {
 }
 
 func (s *stream) download() {
-	index := int64(0)
-
 	defer s.file.Close()
 	defer syscall.Close(s.sock)
 
+	index := int64(0)
+	s.file.Create()
 	for {
 		if s.stopFlag {
 			return
@@ -42,10 +42,12 @@ func (s *stream) download() {
 }
 
 func (s *stream) upload() {
-	retries := 0
-	index := int64(0)
 	defer s.file.Close()
 	defer syscall.Close(s.sock)
+
+	retries := 0
+	index := int64(0)
+	s.file.Open()
 
 	for {
 		if s.stopFlag {

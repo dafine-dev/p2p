@@ -1,41 +1,78 @@
 package messages
 
 import (
-	"crypto/sha1"
+	"math/big"
+	"p2p/files"
+	"p2p/shared"
 	"p2p/users"
 )
 
-func UserID(msg Message) users.UserID {
-	return users.UserID(msg[5:165])
+func UserId(msg Message) shared.HashId {
+	return new(big.Int).SetBytes(msg[5:25])
 }
 
-func Username(msg Message) string {
-	return string(msg[165 : 165+256])
+func RawId(msg Message) shared.HashKey {
+	return shared.HashKey(msg[5:26])
 }
 
-func join(name string, method Code) Message {
-	msg := header(LOCAL_ADDR, method)
+func join(user *users.User, method Code) Message {
+	msg := header(user.Addr, method)
 
-	hasher := sha1.New()
-	hasher.Write(LOCAL_ADDR.Addr[:])
-
-	msg = append(msg, hasher.Sum(nil)...)
-	msg = append(msg, []byte(name)...)
+	msg = append(msg, user.RawId[:]...)
 	return msg
 }
 
-func BeginJoin() Message {
-	return join(users.CURRENT_USERNAME, BEGIN_JOIN)
+func BeginJoin(user *users.User) Message {
+	msg := join(user, BEGIN_JOIN)
+	msg = append(msg, user.RawId[:]...)
+	return msg
 }
 
-func AnswerJoin() Message {
-	return join(users.CURRENT_USERNAME, ANSWER_JOIN)
+func AnswerJoin(user *users.User, suc *users.User, locs ...*files.Location) Message {
+	msg := join(user, ANSWER_JOIN)
+	msg = append(msg, user.Addr.Addr[:]...)
+	msg = append(msg, user.RawId[:]...)
+	for _, loc := range locs {
+		msg = append(msg, loc.Key[:]...)
+	}
+	return msg
 }
 
-func ConfirmJoin() Message {
-	return header(LOCAL_ADDR, CONFIRM_JOIN)
+func ConfirmJoin(user *users.User) Message {
+	return header(user.Addr, CONFIRM_JOIN)
 }
 
-func Leave() Message {
-	return header(LOCAL_ADDR, LEAVE)
+func Leave(user *users.User) Message {
+	return header(user.Addr, LEAVE)
+}
+
+func User(msg Message) *users.User {
+	return &users.User{
+		Addr:  Addr(msg),
+		RawId: RawId(msg),
+		Id:    UserId(msg),
+	}
+}
+
+func FileLocations(msg Message) ([]*files.Location, bool) {
+	data := msg[49:]
+	locs := make([]*files.Location, 0)
+	if len(data)%24 != 0 {
+		return locs, false
+	}
+
+	for i := 0; i < len(data); i += 24 {
+		key := msg[i : i+20]
+
+		loc := &files.Location{
+			Key: shared.HashKey(key),
+			Id:  new(big.Int).SetBytes(key),
+			Addr: shared.Addr{
+				Addr: [4]byte(msg[i+20:]),
+				Port: shared.PORT,
+			}}
+		locs = append(locs, loc)
+	}
+
+	return locs, true
 }
