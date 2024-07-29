@@ -1,7 +1,6 @@
 package transfer
 
 import (
-	"fmt"
 	"log"
 	"p2p/files"
 	"p2p/shared"
@@ -66,8 +65,7 @@ func (s *stream) upload() {
 			s.Stop()
 		}
 
-		fmt.Println(string(buffer))
-		n, err = syscall.Write(s.sock, buffer)
+		n, err = syscall.Write(s.sock, buffer[:n])
 		if err != nil {
 			return
 		}

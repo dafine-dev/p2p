@@ -49,8 +49,7 @@ func (m *Messenger) listenLoop() {
 		n, addr, err := syscall.Recvfrom(m.socket, buffer[:], 0)
 
 		if err != nil {
-			fmt.Println("Leitura de pacote UDP falhou.")
-			continue
+			panic(err)
 		}
 
 		addrI4, ok := addr.(*syscall.SockaddrInet4)

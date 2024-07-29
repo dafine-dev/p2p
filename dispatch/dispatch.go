@@ -35,31 +35,25 @@ func (d *Dispatch) Run() {
 		switch msg.Method() {
 		case messages.BEGIN_JOIN:
 			go d.OnBeginJoin(msg)
-			break
 
 		case messages.ANSWER_JOIN:
 			go d.OnAnswerJoin(msg)
-			break
 
 		case messages.CONFIRM_JOIN:
 			go d.OnConfirmJoin(msg)
-			break
 
 		case messages.INSERT_FILE:
 			go d.OnInsertFile(msg)
-			break
 
 		case messages.LOCATE_FILE:
 			go d.OnLocateFile(msg)
-			break
 
 		case messages.FILE_LOCATED:
 			go d.OnFileLocated(msg)
-			break
 
 		default:
 			go d.OnUnexpected(msg)
-			break
+
 		}
 	}
 }
@@ -173,7 +167,7 @@ func (d *Dispatch) OnFileLocated(msg messages.Message) {
 		return
 	}
 
-	d.trnsfer.Download(data.Key(), msg)
+	d.trnsfer.Download(data.Location())
 }
 
 func (d *Dispatch) Log(msg messages.Message) {

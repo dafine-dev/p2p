@@ -68,8 +68,8 @@ func NewBeginJoin(user *users.User) Message {
 	return new_join(user, BEGIN_JOIN)
 }
 
-func NewAnswerJoin(user, succ *users.User, locs ...*files.Location) Message {
-	msg := new_join(user, ANSWER_JOIN)
+func new_answer_join(user, succ *users.User, method Code, locs ...*files.Location) Message {
+	msg := new_join(user, method)
 	msg = append(msg, succ.Addr.Addr[:]...)
 	for _, loc := range locs {
 		msg = append(msg, loc.Key[:]...)
@@ -81,4 +81,8 @@ func NewAnswerJoin(user, succ *users.User, locs ...*files.Location) Message {
 
 func NewConfirmJoin(user *users.User) Message {
 	return new_join(user, CONFIRM_JOIN)
+}
+
+func NewAnswerJoin(user, succ *users.User, locs ...*files.Location) Message {
+	return new_answer_join(user, succ, ANSWER_JOIN, locs...)
 }

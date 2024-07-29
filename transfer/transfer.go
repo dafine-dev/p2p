@@ -50,8 +50,7 @@ func (t *Transfer) Run() {
 	for {
 		conn, addr, err := syscall.Accept(sock)
 		if err != nil {
-			log.Println("Error accepting new TCP connection")
-			continue
+			panic(err)
 		}
 
 		if len(t.downloads) == t.downloadLimit {
@@ -63,17 +62,19 @@ func (t *Transfer) Run() {
 	}
 }
 
-func (t *Transfer) Download(key shared.HashKey, msg messages.Message) *stream {
+func (t *Transfer) Download(loc *files.Location) *stream {
 	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
-
-	data := messages.FileLocated(msg)
-	addr := data.LocationAddr()
-	if err = syscall.Connect(sock, &addr); err != nil {
+	if err != nil {
 		syscall.Close(sock)
 		return nil
 	}
 
-	_, err = syscall.Write(sock, messages.NewRequestFile(t.addr, key))
+	if err := syscall.Connect(sock, &loc.Addr); err != nil {
+		syscall.Close(sock)
+		return nil
+	}
+
+	_, err = syscall.Write(sock, messages.NewRequestFile(t.addr, loc.Key))
 	if err != nil {
 		return nil
 	}
@@ -90,7 +91,7 @@ func (t *Transfer) Download(key shared.HashKey, msg messages.Message) *stream {
 		return nil
 	}
 
-	file, _ := t.fileManager.Find(key)
+	file, _ := t.fileManager.Find(loc.Key)
 
 	s := &stream{
 		bufferSize: DEFAULT_BUFFER_SIZE,
