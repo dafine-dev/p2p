@@ -10,6 +10,7 @@ const (
 	DOWNLOADING
 	UPLOADING
 	FINISHED
+	NOT_FOUND
 )
 
 type File struct {

@@ -51,6 +51,11 @@ func (d *Dispatch) Run() {
 		case messages.FILE_LOCATED:
 			go d.OnFileLocated(msg)
 
+		case messages.FILE_NOT_FOUND:
+			go d.OnFileNotFound(msg)
+
+		case messages.BROKEN_PROTOCOL:
+
 		default:
 			go d.OnUnexpected(msg)
 
@@ -164,6 +169,7 @@ func (d *Dispatch) OnFileLocated(msg messages.Message) {
 	data := messages.FileLocated(msg)
 	file, found := d.fileManager.Find(data.Key())
 	if !found || file.Status != files.SEARCHING {
+		d.userTable.Add(users.New(msg.OriginAddr()))
 		return
 	}
 
@@ -177,4 +183,21 @@ func (d *Dispatch) Log(msg messages.Message) {
 		msg.Method().String(),
 		"from: ",
 		msg.OriginAddr().Addr)
+}
+
+func (d *Dispatch) OnFileNotFound(msg messages.Message) {
+
+	data := messages.FileLocated(msg)
+	file, found := d.fileManager.Find(data.Key())
+
+	if !found || file.Status != files.SEARCHING {
+		d.userTable.Add(users.New(msg.OriginAddr()))
+		return
+	}
+
+	file.Status = files.NOT_FOUND
+}
+
+func (d *Dispatch) OnLeave(msg messages.Message) {
+
 }
