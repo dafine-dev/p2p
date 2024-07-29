@@ -1,48 +1,91 @@
 package messages
 
 import (
+	"math/big"
+	"p2p/files"
 	"p2p/shared"
 )
 
-func FileKey(msg Message) shared.HashKey {
-	return shared.HashKey(msg[5:25])
+type fileMessage struct {
+	Message
 }
 
-func FileLocation(msg Message) shared.Addr {
-	return shared.Addr{
-		Addr: [4]byte(msg[25:29]),
-		Port: shared.PORT,
-	}
+func (f *fileMessage) Key() shared.HashKey {
+	return shared.HashKey(f.Message[5:25])
 }
 
-func fileMessage(addr shared.Addr, key shared.HashKey, method Code) Message {
-	msg := header(addr, method)
+func (f *fileMessage) Id() shared.HashId {
+	data := f.Key()
+	return new(big.Int).SetBytes(data[:])
+}
+
+func file_message(msg Message) *fileMessage {
+	return &fileMessage{Message: msg}
+}
+
+var RequestFile = file_message
+var LocateFile = file_message
+var FileNotFound = file_message
+var GetFile = file_message
+
+func new_file_message(addr shared.Addr, key shared.HashKey, method Code) Message {
+	msg := make([]byte, 0)
+	msg = append(msg, uint8(method))
+	msg = append(msg, addr.Addr[:]...)
 	msg = append(msg, key[:]...)
 	return msg
 }
 
-func RequestFile(addr shared.Addr, key shared.HashKey) Message {
-	return fileMessage(addr, key, REQUEST_FILE)
+func NewRequestFile(addr shared.Addr, key shared.HashKey) Message {
+	return new_file_message(addr, key, REQUEST_FILE)
 }
 
-func InsertFile(addr shared.Addr, key shared.HashKey) Message {
-	return fileMessage(addr, key, INSERT_FILE)
+func NewLocateFile(addr shared.Addr, key shared.HashKey) Message {
+	return new_file_message(addr, key, LOCATE_FILE)
 }
 
-func FileNotFound(addr shared.Addr, key shared.HashKey) Message {
-	return fileMessage(addr, key, FILE_NOT_FOUND)
+func NewGetFile(addr shared.Addr, key shared.HashKey) Message {
+	return new_file_message(addr, key, FILE)
 }
 
-func LocateFile(addr shared.Addr, key shared.HashKey) Message {
-	return fileMessage(addr, key, LOCATE_FILE)
+func NewFileNotFound(addr shared.Addr, key shared.HashKey) Message {
+	return new_file_message(addr, key, FILE_NOT_FOUND)
 }
 
-func FileLocated(addr shared.Addr, locAddr shared.Addr, key shared.HashKey) Message {
-	msg := fileMessage(addr, key, FILE_LOCATED)
-	msg = append(msg, locAddr.Addr[:]...)
+type locFile struct {
+	fileMessage
+}
+
+func (f *locFile) LocationAddr() shared.Addr {
+	return shared.ReadAddr(f.Message[25:29])
+}
+
+func (f *locFile) Location() *files.Location {
+	return files.NewLocation(f.Key(), f.LocationAddr())
+}
+
+func loc_file(msg Message) *locFile {
+	return &locFile{fileMessage: fileMessage{Message: msg}}
+}
+
+func new_loc_file(addr shared.Addr, key shared.HashKey, locationAddr shared.Addr, method Code) Message {
+	msg := new_file_message(addr, key, method)
+	msg = append(msg, locationAddr.Addr[:]...)
 	return msg
 }
 
-func File(addr shared.Addr, key shared.HashKey) Message {
-	return fileMessage(addr, key, FILE)
+func InsertFile(msg Message) *locFile {
+	return loc_file(msg)
+}
+
+func FileLocated(msg Message) *locFile {
+	return loc_file(msg)
+}
+
+func NewInsertFile(addr shared.Addr, loc *files.Location) Message {
+	return new_loc_file(addr, loc.Key, loc.Addr, INSERT_FILE)
+}
+
+func NewFileLocated(addr shared.Addr, loc *files.Location) Message {
+	return new_loc_file(addr, loc.Key, loc.Addr, FILE_LOCATED)
 }

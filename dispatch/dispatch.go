@@ -1,9 +1,7 @@
 package dispatch
 
 import (
-	"fmt"
 	"log"
-	"math/big"
 	"p2p/files"
 	"p2p/messages"
 	"p2p/messenger"
@@ -34,7 +32,7 @@ func New(msger *messenger.Messenger, t *transfer.Transfer,
 func (d *Dispatch) Run() {
 	for {
 		msg := d.msger.Read()
-		switch messages.Method(msg) {
+		switch msg.Method() {
 		case messages.BEGIN_JOIN:
 			go d.OnBeginJoin(msg)
 			break
@@ -68,43 +66,40 @@ func (d *Dispatch) Run() {
 
 func (d *Dispatch) OnBeginJoin(msg messages.Message) {
 	d.Log(msg)
-
-	originAddr := messages.Addr(msg)
-	user := messages.User(msg)
-
+	data := messages.BeginJoin(msg)
+	user := data.User()
 	if d.userTable.IsSuccessor(user) {
-		answer := messages.AnswerJoin(
+		answer := messages.NewAnswerJoin(
 			d.userTable.Current,
 			d.userTable.Successor,
 			d.fileTable.Between(d.userTable.Current.Id, user.Id)...,
 		)
-		d.msger.Send(answer, originAddr)
+		d.msger.Send(answer, data.OriginAddr())
 	}
 }
 
 func (d *Dispatch) OnAnswerJoin(msg messages.Message) {
 	d.Log(msg)
-	originAddr := messages.Addr(msg)
-	user := messages.User(msg)
-	locs, ok := messages.FileLocations(msg)
+	data := messages.AnswerJoin(msg)
+	locs, ok := data.Locations()
 	if !ok {
-		d.msger.Send(messages.BrokenProtocol(d.userTable.Current.Addr), originAddr)
+		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
 		return
 	}
 
-	d.userTable.SetSuccessor(user)
+	d.userTable.SetSuccessor(data.Successor())
 	d.fileTable.Add(locs...)
 
-	d.msger.Send(messages.ConfirmJoin(d.userTable.Current), originAddr)
+	d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
 }
 
 func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
 	d.Log(msg)
+	data := messages.ConfirmJoin(msg)
+	user := data.User()
 
-	originAddr := messages.Addr(msg)
-	user := messages.User(msg)
 	if !d.userTable.SetSuccessor(user) {
-		d.msger.Send(messages.BrokenProtocol(d.userTable.Current.Addr), originAddr)
+		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), user.Addr)
 		return
 	}
 
@@ -113,39 +108,37 @@ func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
 
 func (d *Dispatch) OnInsertFile(msg messages.Message) {
 	d.Log(msg)
+	data := messages.InsertFile(msg)
+	loc := data.Location()
 
-	key := messages.FileKey(msg)
-	fileId := new(big.Int).SetBytes(key[:])
-	loc := messages.FileLocation(msg)
-
-	if d.userTable.Owns(fileId) {
-		d.fileTable.Add(&files.Location{Addr: loc, Key: key, Id: fileId})
+	if d.userTable.Owns(loc.Id) {
+		d.fileTable.Add(loc)
 		return
 	}
 
-	nearest := d.userTable.Nearest(fileId)
-	fmt.Println(nearest)
+	nearest := d.userTable.Nearest(loc.Id)
 	d.msger.Send(msg, nearest.Addr)
 }
 
 func (d *Dispatch) OnUnexpected(msg messages.Message) {
 	d.Log(msg)
-	d.msger.Send(messages.BrokenProtocol(d.userTable.Current.Addr), messages.Addr(msg))
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), msg.OriginAddr())
 }
 
 func (d *Dispatch) OnLocateFile(msg messages.Message) {
-	key := messages.FileKey(msg)
-	originAddr := messages.Addr(msg)
-	fileId := new(big.Int).SetBytes(key[:])
+	d.Log(msg)
+
+	data := messages.LocateFile(msg)
+	key := data.Key()
+	fileId := data.Id()
 
 	_, found := d.fileManager.Find(key)
 	if found {
-		response := messages.FileLocated(
+		response := messages.NewFileLocated(
 			d.userTable.Current.Addr,
-			d.userTable.Current.Addr,
-			key)
+			files.NewLocation(key, d.userTable.Current.Addr))
 
-		d.msger.Send(response, originAddr)
+		d.msger.Send(response, msg.OriginAddr())
 		return
 	}
 
@@ -153,12 +146,17 @@ func (d *Dispatch) OnLocateFile(msg messages.Message) {
 
 		loc, found := d.fileTable.Find(key)
 		if found {
-			response := messages.FileLocated(d.userTable.Current.Addr, loc.Addr, key)
-			d.msger.Send(response, originAddr)
+			response := messages.NewFileLocated(
+				d.userTable.Current.Addr,
+				files.NewLocation(key, loc.Addr))
+			d.msger.Send(response, msg.OriginAddr())
 			return
 		}
 
-		d.msger.Send(messages.FileNotFound(d.userTable.Current.Addr, key), originAddr)
+		d.msger.Send(
+			messages.NewFileNotFound(d.userTable.Current.Addr, key),
+			msg.OriginAddr())
+
 		return
 	}
 
@@ -167,19 +165,22 @@ func (d *Dispatch) OnLocateFile(msg messages.Message) {
 }
 
 func (d *Dispatch) OnFileLocated(msg messages.Message) {
-	file, found := d.fileManager.Find(messages.FileKey(msg))
+	d.Log(msg)
+
+	data := messages.FileLocated(msg)
+	file, found := d.fileManager.Find(data.Key())
 	if !found || file.Status != files.SEARCHING {
 		return
 	}
 
-	d.trnsfer.Download(file.Key, msg)
+	d.trnsfer.Download(data.Key(), msg)
 }
 
 func (d *Dispatch) Log(msg messages.Message) {
 	log.Println(
 		d.userTable.Current.Addr.Addr,
 		"receives:",
-		messages.MethodName(msg),
+		msg.Method().String(),
 		"from: ",
-		messages.Addr(msg).Addr)
+		msg.OriginAddr().Addr)
 }

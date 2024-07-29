@@ -31,3 +31,10 @@ func IsBetween(a HashId, b HashId, c HashId) bool {
 	currentDistance := Distance(b, c)
 	return newDistance.Cmp(currentDistance) < 0
 }
+
+func ReadAddr(data []byte) Addr {
+	return Addr{
+		Addr: [4]byte(data),
+		Port: PORT,
+	}
+}

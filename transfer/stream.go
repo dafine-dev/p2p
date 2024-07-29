@@ -1,6 +1,8 @@
 package transfer
 
 import (
+	"fmt"
+	"log"
 	"p2p/files"
 	"p2p/shared"
 	"sync"
@@ -16,9 +18,11 @@ type stream struct {
 }
 
 func (s *stream) download() {
+	defer log.Println("finished downloading")
 	defer s.file.Close()
 	defer syscall.Close(s.sock)
 
+	log.Println("download")
 	index := int64(0)
 	s.file.Create()
 	for {
@@ -29,12 +33,12 @@ func (s *stream) download() {
 		buffer := make([]byte, s.bufferSize)
 		n, err := syscall.Read(s.sock, buffer)
 		if err != nil {
-			return
+			s.Stop()
 		}
 
 		n, err = s.file.WriteAt(buffer[:n], index)
 		if err != nil {
-			return
+			log.Println("download write", err)
 		}
 
 		index += int64(n)
@@ -42,10 +46,12 @@ func (s *stream) download() {
 }
 
 func (s *stream) upload() {
+	defer log.Println("finished uploading")
 	defer s.file.Close()
 	defer syscall.Close(s.sock)
 
-	retries := 0
+	log.Println("upload")
+	// retries := 0
 	index := int64(0)
 	s.file.Open()
 
@@ -57,26 +63,22 @@ func (s *stream) upload() {
 		buffer := make([]byte, s.bufferSize)
 		n, err := s.file.ReadAt(buffer, index)
 		if err != nil {
+			s.Stop()
+		}
+
+		fmt.Println(string(buffer))
+		n, err = syscall.Write(s.sock, buffer)
+		if err != nil {
 			return
 		}
 
-		n, err = syscall.Write(s.sock, buffer)
-		if err != nil {
-			if retries < 3 {
-				retries++
-				continue
-			} else {
-				return
-			}
-		}
-
-		retries = 0
+		// retries = 0
 		index += int64(n)
 	}
 }
 
 func (s *stream) Stop() {
-	s.stopFlag = false
+	s.stopFlag = true
 }
 
 func (s *stream) IncreaseSpeed(times int) {

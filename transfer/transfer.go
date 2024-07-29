@@ -66,13 +66,14 @@ func (t *Transfer) Run() {
 func (t *Transfer) Download(key shared.HashKey, msg messages.Message) *stream {
 	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 
-	addr := messages.FileLocation(msg)
+	data := messages.FileLocated(msg)
+	addr := data.LocationAddr()
 	if err = syscall.Connect(sock, &addr); err != nil {
 		syscall.Close(sock)
 		return nil
 	}
 
-	_, err = syscall.Write(sock, messages.RequestFile(t.addr, key))
+	_, err = syscall.Write(sock, messages.NewRequestFile(t.addr, key))
 	if err != nil {
 		return nil
 	}
@@ -83,8 +84,8 @@ func (t *Transfer) Download(key shared.HashKey, msg messages.Message) *stream {
 		return nil
 	}
 
-	if messages.Method(answer[:n]) != messages.FILE {
-		syscall.Write(sock, messages.BrokenProtocol(t.addr))
+	if messages.Message(answer[:n]).Method() != messages.FILE {
+		syscall.Write(sock, messages.NewBrokenProtocol(t.addr))
 		syscall.Close(sock)
 		return nil
 	}
@@ -112,26 +113,27 @@ func (t *Transfer) Upload(sock shared.Socket, addr syscall.Sockaddr) {
 	}
 
 	msg := buffer[:n]
-	if messages.Method(msg) != messages.REQUEST_FILE {
-		syscall.Write(sock, messages.BrokenProtocol(t.addr))
+	if messages.Message(msg).Method() != messages.REQUEST_FILE {
+		syscall.Write(sock, messages.NewBrokenProtocol(t.addr))
 		syscall.Close(sock)
 		return
 	}
 
-	key := messages.FileKey(msg)
+	key := messages.RequestFile(msg).Key()
 	file, found := t.fileManager.Find(key)
 
 	if !found {
-		syscall.Write(sock, messages.FileNotFound(t.addr, key))
+		syscall.Write(sock, messages.NewFileNotFound(t.addr, key))
 		syscall.Close(sock)
 		return
 	}
 
-	_, err = syscall.Write(sock, messages.File(t.addr, key))
+	_, err = syscall.Write(sock, messages.NewGetFile(t.addr, key))
 	if err != nil {
 		return
 	}
 
+	file.Open()
 	s := &stream{
 		file:       file,
 		bufferSize: DEFAULT_BUFFER_SIZE,

@@ -24,13 +24,16 @@ func StartTable(addr shared.Addr) *Table {
 	}
 
 	return &Table{
-		all:     make(map[shared.Addr]*User),
-		Current: current,
+		all:       make(map[shared.Addr]*User),
+		Current:   current,
+		Successor: current,
 	}
 }
 
 func (t *Table) Owns(id shared.HashId) bool {
-	return shared.IsBetween(id, t.Current.Id, t.Successor.Id)
+	a := shared.Distance(t.Current.Id, t.Successor.Id)
+	b := shared.Distance(id, t.Successor.Id)
+	return a.Cmp(b) < 0
 }
 
 func (t *Table) Nearest(key shared.HashId) *User {
@@ -54,7 +57,7 @@ func (t *Table) IsPredecessor(user *User) bool {
 }
 
 func (t *Table) IsSuccessor(user *User) bool {
-	if t.Successor == nil {
+	if t.Successor == t.Current {
 		return true
 	}
 	newDistance := shared.Distance(t.Current.Id, user.Id)
@@ -81,22 +84,22 @@ func (t *Table) SetSuccessor(user *User) bool {
 	return false
 }
 
-func (t *Table) New(addr shared.Addr) *User {
-	hasher := sha1.New()
-	hasher.Write(addr.Addr[:])
-	rawid := hasher.Sum(nil)
-	id := new(big.Int).SetBytes(rawid)
-	new_user := &User{
-		Addr:  addr,
-		Id:    id,
-		RawId: [20]byte(rawid),
-	}
-	t.all[addr] = new_user
-	return new_user
-}
+// func (t *Table) New(addr shared.Addr) *User {
+// 	hasher := sha1.New()
+// 	hasher.Write(addr.Addr[:])
+// 	rawid := hasher.Sum(nil)
+// 	id := new(big.Int).SetBytes(rawid)
+// 	new_user := &User{
+// 		Addr:  addr,
+// 		Id:    id,
+// 		RawId: [20]byte(rawid),
+// 	}
+// 	t.all[addr] = new_user
+// 	return new_user
+// }
 
 func (t *Table) SetCurrent(addr shared.Addr, name string) *User {
-	current := t.New(addr)
+	current := New(addr)
 	t.Current = current
 	return current
 }

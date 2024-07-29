@@ -1,10 +1,8 @@
 package messages
 
-import (
-	"p2p/shared"
-)
+import "p2p/shared"
 
-type Code = uint8
+type Code uint8
 
 const (
 	BEGIN_JOIN Code = iota
@@ -20,7 +18,7 @@ const (
 	BROKEN_PROTOCOL
 )
 
-func MethodName(msg Message) string {
+func (c Code) String() string {
 	return map[uint8]string{
 		0:  "BEGIN JOIN",
 		1:  "ANSWER JOIN",
@@ -33,29 +31,18 @@ func MethodName(msg Message) string {
 		8:  "LEAVE",
 		9:  "FILE",
 		10: "BROKEN PROTOCOL",
-	}[Method(msg)]
+	}[uint8(c)]
 }
 
-type Message = []byte
+type Message []byte
 
-func Addr(msg Message) shared.Addr {
+func (m Message) Method() Code {
+	return Code(m[0])
+}
+
+func (m Message) OriginAddr() shared.Addr {
 	return shared.Addr{
-		Addr: [4]byte(msg[0:4]),
+		Addr: [4]byte(m[1:5]),
 		Port: shared.PORT,
 	}
-}
-
-func Method(msg Message) Code {
-	return uint8(msg[4])
-}
-
-func header(addr shared.Addr, method Code) Message {
-	msg := make(Message, 0)
-	msg = append(msg, addr.Addr[:]...)
-	msg = append(msg, method)
-	return msg
-}
-
-func BrokenProtocol(addr shared.Addr) Message {
-	return header(addr, BROKEN_PROTOCOL)
 }

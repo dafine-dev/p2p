@@ -1,11 +1,22 @@
 package files
 
-import "p2p/shared"
+import (
+	"math/big"
+	"p2p/shared"
+)
 
 type Location struct {
 	Key  shared.HashKey
 	Id   shared.HashId
 	Addr shared.Addr
+}
+
+func NewLocation(key shared.HashKey, addr shared.Addr) *Location {
+	return &Location{
+		Key:  key,
+		Id:   new(big.Int).SetBytes(key[:]),
+		Addr: addr,
+	}
 }
 
 type Table struct {
@@ -50,4 +61,8 @@ func (t *Table) Add(locs ...*Location) {
 func (t *Table) Find(key shared.HashKey) (*Location, bool) {
 	loc, ok := t.locations[key]
 	return loc, ok
+}
+
+func (t *Table) All() map[shared.HashKey]*Location {
+	return t.locations
 }
