@@ -72,58 +72,44 @@ func (d *Dispatch) Run() {
 
 func (d *Dispatch) OnBeginJoin(msg messages.Message) {
 	d.Log(msg)
-	data := messages.BeginJoin(msg)
-	user := data.User()
+
+	user := msg.User()
 	if d.userTable.IsSuccessor(user) {
-		b := d.fileTable.Between(user.Id, d.userTable.Successor.Id)
-		answer := messages.NewAnswerPreJoin(
-			d.userTable.Current,
-			b...,
-		)
-		d.msger.Send(answer, data.OriginAddr())
+		answer := messages.NewAnswerPreJoin(d.userTable.Current)
+		d.msger.Send(answer, msg.OriginAddr())
 	}
 
 	if d.userTable.IsPredecessor(user) {
 		response := messages.NewAnswerSucJoin(d.userTable.Current)
-		d.msger.Send(response, data.OriginAddr())
+		d.msger.Send(response, msg.OriginAddr())
 	}
 }
 
 func (d *Dispatch) OnAnswerPreJoin(msg messages.Message) {
 	d.Log(msg)
-	data := messages.AnswerPreJoin(msg)
-	locs, ok := data.Locations()
-	if !ok {
-		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+
+	if d.userTable.SetPredecessor(msg.User()) {
+		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), msg.OriginAddr())
 		return
 	}
 
-	if d.userTable.SetPredecessor(data.User()) {
-
-		d.fileTable.Add(locs...)
-		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
-		return
-	}
-
-	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), msg.OriginAddr())
 }
 
 func (d *Dispatch) OnAnswerSucJoin(msg messages.Message) {
 	d.Log(msg)
-	data := messages.AnswerSucJoin(msg)
 
-	if d.userTable.SetSuccessor(data.User()) {
-		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
+	if d.userTable.SetSuccessor(msg.User()) {
+		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), msg.OriginAddr())
 		return
 	}
 
-	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), msg.OriginAddr())
 }
 
 func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
 	d.Log(msg)
-	data := messages.ConfirmJoin(msg)
-	user := data.User()
+	user := msg.User()
 
 	if d.userTable.SetSuccessor(user) {
 		d.fileTable.RemoveBetween(user.Id, d.userTable.Successor.Id)
@@ -230,13 +216,11 @@ func (d *Dispatch) OnLeave(msg messages.Message) {
 	data := messages.Leave(msg)
 
 	if d.userTable.Successor.Id == data.User().Id {
-		locs, _ := data.Locations()
-		d.fileTable.Add(locs...)
-		d.userTable.Successor = data.Successor()
+		d.userTable.Successor = data.Neighbour()
 	}
 
 	if d.userTable.Predecessor.Id == data.User().Id {
-		d.userTable.Predecessor = data.Successor()
+		d.userTable.Predecessor = data.Neighbour()
 	}
 }
 

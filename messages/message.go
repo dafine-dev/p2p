@@ -1,6 +1,9 @@
 package messages
 
-import "p2p/shared"
+import (
+	"p2p/shared"
+	"p2p/users"
+)
 
 type Code uint8
 
@@ -47,4 +50,18 @@ func (m Message) OriginAddr() shared.Addr {
 		Addr: [4]byte(m[1:5]),
 		Port: shared.PORT,
 	}
+}
+
+func (m Message) User() *users.User {
+	return users.New(m.OriginAddr())
+}
+
+func header(user *users.User, method Code) Message {
+	// [0] -> método
+	// [1:5] -> ipv4 de origem
+	msg := make(Message, 0)
+	msg = append(msg, byte(method))
+	msg = append(msg, user.Addr.Addr[:]...)
+
+	return msg
 }

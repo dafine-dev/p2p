@@ -99,8 +99,7 @@ func (a *Actions) Leave() {
 	succ := a.userTable.Successor
 	pred := a.userTable.Predecessor
 
-	msg := messages.NewLeave(user, succ,
-		a.fileTable.Between(user.Id, succ.Id)...)
+	msg := messages.NewLeave(user, succ)
 
 	a.msger.Send(msg, pred.Addr)
 
