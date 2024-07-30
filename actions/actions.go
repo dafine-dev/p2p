@@ -7,6 +7,7 @@ import (
 	"p2p/messages"
 	"p2p/messenger"
 	"p2p/shared"
+	"p2p/tracker"
 	"p2p/transfer"
 	"p2p/users"
 )
@@ -18,6 +19,7 @@ type Actions struct {
 	fileManager *files.Manager
 	trnsfer     *transfer.Transfer
 	dispatcher  *dispatch.Dispatch
+	trcker      *tracker.Tracker
 }
 
 func New(addr shared.Addr, directory string) *Actions {
@@ -25,11 +27,11 @@ func New(addr shared.Addr, directory string) *Actions {
 	fileManager := files.NewManager(directory)
 	fileManager.SetUp()
 
-	fmt.Println(addr)
 	m := messenger.New(addr)
 	f := files.NewTable()
 	t := transfer.New(5, 5, fileManager, addr)
 	d := dispatch.New(m, t, userTable, fileManager, f)
+	tr := &tracker.Tracker{UserTable: userTable}
 
 	return &Actions{
 		msger:       m,
@@ -38,13 +40,17 @@ func New(addr shared.Addr, directory string) *Actions {
 		fileManager: fileManager,
 		dispatcher:  d,
 		trnsfer:     t,
+		trcker:      tr,
 	}
 }
 
-func (a *Actions) Run() {
+func (a *Actions) Run(tracking bool) {
 	go a.msger.Run()
 	go a.trnsfer.Run()
 	go a.dispatcher.Run()
+	if tracking {
+		go a.trcker.Run(a.msger)
+	}
 }
 
 func (a *Actions) Connect() {
@@ -75,7 +81,7 @@ func (a *Actions) InsertFile(name string) {
 }
 
 func (a *Actions) GetFile(name string) {
-	file := a.fileManager.Get(name)
+	file := a.fileManager.New(name)
 
 	loc, found := a.fileTable.Find(file.Key)
 	if found {
@@ -90,4 +96,16 @@ func (a *Actions) GetFile(name string) {
 
 func (a *Actions) Leave() {
 
+}
+
+func (a *Actions) FileTable() map[shared.HashKey]*files.Location {
+	return a.fileTable.All()
+}
+
+func (a *Actions) PrintSuccessor() {
+	fmt.Println(a.userTable.Current.Addr.Addr, a.userTable.Successor.Addr.Addr)
+}
+
+func (a *Actions) PrintUsers() {
+	fmt.Println(a.userTable.All())
 }

@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"fmt"
 	"log"
 	"p2p/files"
 	"p2p/messages"
@@ -52,10 +53,11 @@ func (d *Dispatch) Run() {
 			go d.OnFileLocated(msg)
 
 		case messages.FILE_NOT_FOUND:
+			fmt.Println("file not found")
 			go d.OnFileNotFound(msg)
 
 		case messages.BROKEN_PROTOCOL:
-
+			log.Println("Broken Protocol")
 		default:
 			go d.OnUnexpected(msg)
 
@@ -68,10 +70,12 @@ func (d *Dispatch) OnBeginJoin(msg messages.Message) {
 	data := messages.BeginJoin(msg)
 	user := data.User()
 	if d.userTable.IsSuccessor(user) {
+		b := d.fileTable.Between(user.Id, d.userTable.Successor.Id)
+		// fmt.Println(b)
 		answer := messages.NewAnswerJoin(
 			d.userTable.Current,
 			d.userTable.Successor,
-			d.fileTable.Between(d.userTable.Current.Id, user.Id)...,
+			b...,
 		)
 		d.msger.Send(answer, data.OriginAddr())
 	}
@@ -97,12 +101,13 @@ func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
 	data := messages.ConfirmJoin(msg)
 	user := data.User()
 
+	succ := d.userTable.Successor
 	if !d.userTable.SetSuccessor(user) {
 		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), user.Addr)
 		return
 	}
 
-	d.fileTable.RemoveBetween(d.userTable.Current.Id, user.Id)
+	d.fileTable.RemoveBetween(user.Id, succ.Id)
 }
 
 func (d *Dispatch) OnInsertFile(msg messages.Message) {
@@ -176,16 +181,8 @@ func (d *Dispatch) OnFileLocated(msg messages.Message) {
 	d.trnsfer.Download(data.Location())
 }
 
-func (d *Dispatch) Log(msg messages.Message) {
-	log.Println(
-		d.userTable.Current.Addr.Addr,
-		"receives:",
-		msg.Method().String(),
-		"from: ",
-		msg.OriginAddr().Addr)
-}
-
 func (d *Dispatch) OnFileNotFound(msg messages.Message) {
+	d.Log(msg)
 
 	data := messages.FileLocated(msg)
 	file, found := d.fileManager.Find(data.Key())
@@ -196,6 +193,15 @@ func (d *Dispatch) OnFileNotFound(msg messages.Message) {
 	}
 
 	file.Status = files.NOT_FOUND
+}
+
+func (d *Dispatch) Log(msg messages.Message) {
+	log.Println(
+		d.userTable.Current.Addr.Addr,
+		"receives:",
+		msg.Method().String(),
+		"from: ",
+		msg.OriginAddr().Addr)
 }
 
 func (d *Dispatch) OnLeave(msg messages.Message) {

@@ -5,24 +5,20 @@ import (
 	"syscall"
 )
 
-type Socket = syscall.Handle
+type Socket = int
 type Addr = syscall.SockaddrInet4
 type HashKey = [20]byte
 type HashId = *big.Int
 
-var MaxId = new(big.Int).Lsh(big.NewInt(1), 160)
+var MaxId = new(big.Int).Exp(big.NewInt(2), big.NewInt(160), nil)
 
 func Distance(a HashId, b HashId) HashId {
-	switch a.Cmp(b) {
-	case -1:
-		// B - A
+	r := a.Cmp(b)
+	if r < 0 {
 		return new(big.Int).Sub(b, a)
-	case 1:
-		// B + 2^N - A
+	} else {
 		c := new(big.Int).Add(b, MaxId)
 		return c.Sub(c, a)
-	default:
-		return new(big.Int)
 	}
 }
 

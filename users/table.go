@@ -33,7 +33,7 @@ func StartTable(addr shared.Addr) *Table {
 func (t *Table) Owns(id shared.HashId) bool {
 	a := shared.Distance(t.Current.Id, t.Successor.Id)
 	b := shared.Distance(id, t.Successor.Id)
-	return a.Cmp(b) < 0
+	return b.Cmp(a) <= 0
 }
 
 func (t *Table) Nearest(key shared.HashId) *User {
@@ -60,9 +60,9 @@ func (t *Table) IsSuccessor(user *User) bool {
 	if t.Successor == t.Current {
 		return true
 	}
-	newDistance := shared.Distance(t.Current.Id, user.Id)
-	currentDistance := shared.Distance(t.Current.Id, t.Successor.Id)
-	return newDistance.Cmp(currentDistance) < 0
+	a := shared.Distance(t.Current.Id, user.Id)
+	b := shared.Distance(t.Current.Id, t.Successor.Id)
+	return a.Cmp(b) < 0
 }
 
 func (t *Table) SetPredecessor(user *User) bool {
@@ -106,4 +106,13 @@ func (t *Table) SetCurrent(addr shared.Addr, name string) *User {
 
 func (t *Table) Add(user *User) {
 	t.all[user.Addr] = user
+}
+
+func (t *Table) All() []*User {
+	u := make([]*User, 0)
+	for _, user := range t.all {
+		u = append(u, user)
+	}
+
+	return u
 }

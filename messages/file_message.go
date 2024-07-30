@@ -30,7 +30,7 @@ var GetFile = file_message
 
 func new_file_message(addr shared.Addr, key shared.HashKey, method Code) Message {
 	msg := make([]byte, 0)
-	msg = append(msg, uint8(method))
+	msg = append(msg, byte(method))
 	msg = append(msg, addr.Addr[:]...)
 	msg = append(msg, key[:]...)
 	return msg

@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"math/big"
 	"p2p/shared"
 )
@@ -34,6 +35,7 @@ func (t *Table) Between(start shared.HashId, end shared.HashId) []*Location {
 	window := shared.Distance(start, end)
 
 	for _, loc := range t.locations {
+		fmt.Println(loc.Id, start, end)
 		if shared.Distance(loc.Id, end).Cmp(window) <= 0 {
 			locs = append(locs, loc)
 		}

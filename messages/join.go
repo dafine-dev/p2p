@@ -26,12 +26,12 @@ func (j *answerJoin) Locations() ([]*files.Location, bool) {
 	locs := make([]*files.Location, 0)
 	if len(j.Message) > 9 {
 
-		length := len(j.Message[10:])
+		length := len(j.Message[9:])
 		if length%24 != 0 {
 			return locs, false
 		}
 
-		for i := 0; i < length; i += 24 {
+		for i := 9; i < length; i += 24 {
 			loc := &files.Location{
 				Key:  shared.HashKey(j.Message[i : i+20]),
 				Addr: shared.ReadAddr(j.Message[i+20 : i+24]),
@@ -39,7 +39,6 @@ func (j *answerJoin) Locations() ([]*files.Location, bool) {
 			locs = append(locs, loc)
 		}
 	}
-
 	return locs, true
 }
 
