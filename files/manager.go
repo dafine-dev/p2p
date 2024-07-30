@@ -2,7 +2,6 @@ package files
 
 import (
 	"crypto/sha1"
-	"math/big"
 	"os"
 	"p2p/shared"
 	"path/filepath"
@@ -30,12 +29,12 @@ func (m *Manager) New(name string) *File {
 
 	hasher := sha1.New()
 	hasher.Write([]byte(name))
-	key := shared.HashKey(hasher.Sum(nil))
+	key := shared.HashKey(hasher.Sum(nil)[0])
 
 	file := &File{
 		Name: fullname,
 		Key:  key,
-		Id:   new(big.Int).SetBytes(key[:]),
+		Id:   uint(key),
 	}
 
 	m.all[key] = file
@@ -46,7 +45,7 @@ func (m *Manager) New(name string) *File {
 func (m *Manager) Get(name string) *File {
 	hasher := sha1.New()
 	hasher.Write([]byte(name))
-	key := shared.HashKey(hasher.Sum(nil))
+	key := shared.HashKey(hasher.Sum(nil)[0])
 
 	return m.all[key]
 }

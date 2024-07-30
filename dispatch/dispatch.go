@@ -1,7 +1,6 @@
 package dispatch
 
 import (
-	"fmt"
 	"log"
 	"p2p/files"
 	"p2p/messages"
@@ -35,31 +34,37 @@ func (d *Dispatch) Run() {
 		msg := d.msger.Read()
 		switch msg.Method() {
 		case messages.BEGIN_JOIN:
-			go d.OnBeginJoin(msg)
+			d.OnBeginJoin(msg)
 
-		case messages.ANSWER_JOIN:
-			go d.OnAnswerJoin(msg)
+		case messages.ANSWER_PRE_JOIN:
+			d.OnAnswerPreJoin(msg)
+
+		case messages.ANSWER_SUC_JOIN:
+			d.OnAnswerSucJoin(msg)
 
 		case messages.CONFIRM_JOIN:
-			go d.OnConfirmJoin(msg)
+			d.OnConfirmJoin(msg)
 
 		case messages.INSERT_FILE:
-			go d.OnInsertFile(msg)
+			d.OnInsertFile(msg)
 
 		case messages.LOCATE_FILE:
-			go d.OnLocateFile(msg)
+			d.OnLocateFile(msg)
 
 		case messages.FILE_LOCATED:
-			go d.OnFileLocated(msg)
+			d.OnFileLocated(msg)
 
 		case messages.FILE_NOT_FOUND:
-			fmt.Println("file not found")
-			go d.OnFileNotFound(msg)
+			d.OnFileNotFound(msg)
 
 		case messages.BROKEN_PROTOCOL:
 			log.Println("Broken Protocol")
+
+		case messages.LEAVE:
+			d.OnLeave(msg)
+
 		default:
-			go d.OnUnexpected(msg)
+			d.OnUnexpected(msg)
 
 		}
 	}
@@ -71,29 +76,48 @@ func (d *Dispatch) OnBeginJoin(msg messages.Message) {
 	user := data.User()
 	if d.userTable.IsSuccessor(user) {
 		b := d.fileTable.Between(user.Id, d.userTable.Successor.Id)
-		// fmt.Println(b)
-		answer := messages.NewAnswerJoin(
+		answer := messages.NewAnswerPreJoin(
 			d.userTable.Current,
-			d.userTable.Successor,
 			b...,
 		)
 		d.msger.Send(answer, data.OriginAddr())
 	}
+
+	if d.userTable.IsPredecessor(user) {
+		response := messages.NewAnswerSucJoin(d.userTable.Current)
+		d.msger.Send(response, data.OriginAddr())
+	}
 }
 
-func (d *Dispatch) OnAnswerJoin(msg messages.Message) {
+func (d *Dispatch) OnAnswerPreJoin(msg messages.Message) {
 	d.Log(msg)
-	data := messages.AnswerJoin(msg)
+	data := messages.AnswerPreJoin(msg)
 	locs, ok := data.Locations()
 	if !ok {
 		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
 		return
 	}
 
-	d.userTable.SetSuccessor(data.Successor())
-	d.fileTable.Add(locs...)
+	if d.userTable.SetPredecessor(data.User()) {
 
-	d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
+		d.fileTable.Add(locs...)
+		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
+		return
+	}
+
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+}
+
+func (d *Dispatch) OnAnswerSucJoin(msg messages.Message) {
+	d.Log(msg)
+	data := messages.AnswerSucJoin(msg)
+
+	if d.userTable.SetSuccessor(data.User()) {
+		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
+		return
+	}
+
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
 }
 
 func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
@@ -101,13 +125,14 @@ func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
 	data := messages.ConfirmJoin(msg)
 	user := data.User()
 
-	succ := d.userTable.Successor
-	if !d.userTable.SetSuccessor(user) {
-		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), user.Addr)
+	if d.userTable.SetSuccessor(user) {
+		d.fileTable.RemoveBetween(user.Id, d.userTable.Successor.Id)
 		return
 	}
 
-	d.fileTable.RemoveBetween(user.Id, succ.Id)
+	d.userTable.SetPredecessor(user)
+
+	// d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), user.Addr)
 }
 
 func (d *Dispatch) OnInsertFile(msg messages.Message) {
@@ -126,6 +151,7 @@ func (d *Dispatch) OnInsertFile(msg messages.Message) {
 
 func (d *Dispatch) OnUnexpected(msg messages.Message) {
 	d.Log(msg)
+	log.Println(msg)
 	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), msg.OriginAddr())
 }
 
@@ -170,11 +196,13 @@ func (d *Dispatch) OnLocateFile(msg messages.Message) {
 
 func (d *Dispatch) OnFileLocated(msg messages.Message) {
 	d.Log(msg)
-
 	data := messages.FileLocated(msg)
+
+	user := users.New(msg.OriginAddr())
+	d.userTable.Update(data.Id(), user)
+
 	file, found := d.fileManager.Find(data.Key())
 	if !found || file.Status != files.SEARCHING {
-		d.userTable.Add(users.New(msg.OriginAddr()))
 		return
 	}
 
@@ -183,16 +211,33 @@ func (d *Dispatch) OnFileLocated(msg messages.Message) {
 
 func (d *Dispatch) OnFileNotFound(msg messages.Message) {
 	d.Log(msg)
-
 	data := messages.FileLocated(msg)
+
+	user := users.New(msg.OriginAddr())
+	d.userTable.Update(data.Id(), user)
 	file, found := d.fileManager.Find(data.Key())
 
 	if !found || file.Status != files.SEARCHING {
-		d.userTable.Add(users.New(msg.OriginAddr()))
 		return
 	}
 
 	file.Status = files.NOT_FOUND
+}
+
+func (d *Dispatch) OnLeave(msg messages.Message) {
+	d.Log(msg)
+
+	data := messages.Leave(msg)
+
+	if d.userTable.Successor.Id == data.User().Id {
+		locs, _ := data.Locations()
+		d.fileTable.Add(locs...)
+		d.userTable.Successor = data.Successor()
+	}
+
+	if d.userTable.Predecessor.Id == data.User().Id {
+		d.userTable.Predecessor = data.Successor()
+	}
 }
 
 func (d *Dispatch) Log(msg messages.Message) {
@@ -202,8 +247,4 @@ func (d *Dispatch) Log(msg messages.Message) {
 		msg.Method().String(),
 		"from: ",
 		msg.OriginAddr().Addr)
-}
-
-func (d *Dispatch) OnLeave(msg messages.Message) {
-
 }

@@ -29,7 +29,7 @@ func New(addr shared.Addr, directory string) *Actions {
 
 	m := messenger.New(addr)
 	f := files.NewTable()
-	t := transfer.New(5, 5, fileManager, addr)
+	t := transfer.New(15, 15, fileManager, addr)
 	d := dispatch.New(m, t, userTable, fileManager, f)
 	tr := &tracker.Tracker{UserTable: userTable}
 
@@ -59,7 +59,7 @@ func (a *Actions) Connect() {
 		Port: shared.PORT,
 	}
 	msg := messages.NewBeginJoin(a.userTable.Current)
-	for i := 2; i < 5; i++ {
+	for i := 2; i < 18; i++ {
 		addr.Addr[3] = uint8(i)
 		a.msger.Send(msg, addr)
 	}
@@ -95,7 +95,17 @@ func (a *Actions) GetFile(name string) {
 }
 
 func (a *Actions) Leave() {
+	user := a.userTable.Current
+	succ := a.userTable.Successor
+	pred := a.userTable.Predecessor
 
+	msg := messages.NewLeave(user, succ,
+		a.fileTable.Between(user.Id, succ.Id)...)
+
+	a.msger.Send(msg, pred.Addr)
+
+	msg = messages.NewLeave(user, pred)
+	a.msger.Send(msg, succ.Addr)
 }
 
 func (a *Actions) FileTable() map[shared.HashKey]*files.Location {
@@ -103,9 +113,17 @@ func (a *Actions) FileTable() map[shared.HashKey]*files.Location {
 }
 
 func (a *Actions) PrintSuccessor() {
-	fmt.Println(a.userTable.Current.Addr.Addr, a.userTable.Successor.Addr.Addr)
+	fmt.Println(
+		a.userTable.Predecessor.Id,
+		a.userTable.Current.Id,
+		a.userTable.Successor.Id)
 }
 
 func (a *Actions) PrintUsers() {
-	fmt.Println(a.userTable.All())
+	m := make([]string, 0)
+	for key, user := range a.userTable.All() {
+		m = append(m, fmt.Sprintf("| %d:%d |", user.Id, key))
+	}
+
+	fmt.Println(m)
 }

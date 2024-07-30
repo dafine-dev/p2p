@@ -1,31 +1,26 @@
 package shared
 
 import (
-	"math/big"
 	"syscall"
 )
 
 type Socket = int
 type Addr = syscall.SockaddrInet4
-type HashKey = [20]byte
-type HashId = *big.Int
+type HashKey = byte
+type HashId = uint
 
-var MaxId = new(big.Int).Exp(big.NewInt(2), big.NewInt(160), nil)
+var MaxId uint = 256
 
 func Distance(a HashId, b HashId) HashId {
-	r := a.Cmp(b)
-	if r < 0 {
-		return new(big.Int).Sub(b, a)
+	if a < b {
+		return b - a
 	} else {
-		c := new(big.Int).Add(b, MaxId)
-		return c.Sub(c, a)
+		return b + 256 - a
 	}
 }
 
 func IsBetween(a HashId, b HashId, c HashId) bool {
-	newDistance := Distance(a, c)
-	currentDistance := Distance(b, c)
-	return newDistance.Cmp(currentDistance) < 0
+	return Distance(a, c) < Distance(b, c)
 }
 
 func ReadAddr(data []byte) Addr {

@@ -2,7 +2,6 @@ package users
 
 import (
 	"crypto/sha1"
-	"math/big"
 	"p2p/shared"
 )
 
@@ -17,10 +16,9 @@ func New(addr shared.Addr) *User {
 	hasher.Write(addr.Addr[:])
 	key := hasher.Sum(nil)
 
-	id := new(big.Int).SetBytes(key)
 	return &User{
 		Addr:  addr,
-		RawId: shared.HashKey(key),
-		Id:    id,
+		RawId: shared.HashKey(key[0]),
+		Id:    uint(key[0]),
 	}
 }

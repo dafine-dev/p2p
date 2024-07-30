@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"math/big"
 	"p2p/files"
 	"p2p/shared"
 )
@@ -11,12 +10,11 @@ type fileMessage struct {
 }
 
 func (f *fileMessage) Key() shared.HashKey {
-	return shared.HashKey(f.Message[5:25])
+	return shared.HashKey(f.Message[5])
 }
 
 func (f *fileMessage) Id() shared.HashId {
-	data := f.Key()
-	return new(big.Int).SetBytes(data[:])
+	return uint(f.Key())
 }
 
 func file_message(msg Message) *fileMessage {
@@ -32,7 +30,7 @@ func new_file_message(addr shared.Addr, key shared.HashKey, method Code) Message
 	msg := make([]byte, 0)
 	msg = append(msg, byte(method))
 	msg = append(msg, addr.Addr[:]...)
-	msg = append(msg, key[:]...)
+	msg = append(msg, key)
 	return msg
 }
 
@@ -57,7 +55,7 @@ type locFile struct {
 }
 
 func (f *locFile) LocationAddr() shared.Addr {
-	return shared.ReadAddr(f.Message[25:29])
+	return shared.ReadAddr(f.Message[6:10])
 }
 
 func (f *locFile) Location() *files.Location {

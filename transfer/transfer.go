@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"fmt"
 	"log"
 	"p2p/files"
 	"p2p/messages"
@@ -63,31 +64,39 @@ func (t *Transfer) Run() {
 }
 
 func (t *Transfer) Download(loc *files.Location) *stream {
+	defer fmt.Println("hmmmmm")
 	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
+		fmt.Println(err)
 		syscall.Close(sock)
 		return nil
 	}
 
+	fmt.Println(loc.Addr.Addr)
 	if err := syscall.Connect(sock, &loc.Addr); err != nil {
+		fmt.Println("leitura")
+		fmt.Println(err)
 		syscall.Close(sock)
 		return nil
 	}
 
 	_, err = syscall.Write(sock, messages.NewRequestFile(t.addr, loc.Key))
 	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
 
 	answer := make([]byte, 1024)
 	n, err := syscall.Read(sock, answer)
 	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
 
 	if messages.Message(answer[:n]).Method() != messages.FILE {
 		syscall.Write(sock, messages.NewBrokenProtocol(t.addr))
 		syscall.Close(sock)
+		fmt.Println("aaaaaa")
 		return nil
 	}
 
@@ -100,12 +109,14 @@ func (t *Transfer) Download(loc *files.Location) *stream {
 		sock:       sock,
 	}
 
+	fmt.Println("testando")
 	go s.download()
 	return s
 }
 
 func (t *Transfer) Upload(sock shared.Socket, addr syscall.Sockaddr) {
 
+	fmt.Println("recusandox")
 	buffer := make([]byte, 1024)
 
 	n, err := syscall.Read(sock, buffer)

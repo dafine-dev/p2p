@@ -1,8 +1,6 @@
 package files
 
 import (
-	"fmt"
-	"math/big"
 	"p2p/shared"
 )
 
@@ -15,7 +13,7 @@ type Location struct {
 func NewLocation(key shared.HashKey, addr shared.Addr) *Location {
 	return &Location{
 		Key:  key,
-		Id:   new(big.Int).SetBytes(key[:]),
+		Id:   uint(key),
 		Addr: addr,
 	}
 }
@@ -35,8 +33,8 @@ func (t *Table) Between(start shared.HashId, end shared.HashId) []*Location {
 	window := shared.Distance(start, end)
 
 	for _, loc := range t.locations {
-		fmt.Println(loc.Id, start, end)
-		if shared.Distance(loc.Id, end).Cmp(window) <= 0 {
+
+		if shared.Distance(loc.Id, end) < window {
 			locs = append(locs, loc)
 		}
 	}
@@ -48,7 +46,7 @@ func (t *Table) RemoveBetween(start shared.HashId, end shared.HashId) {
 	window := shared.Distance(start, end)
 
 	for key, loc := range t.locations {
-		if shared.Distance(loc.Id, end).Cmp(window) <= 0 {
+		if shared.Distance(loc.Id, end) <= window {
 			delete(t.locations, key)
 		}
 	}
@@ -64,7 +62,7 @@ func (t *Table) Find(key shared.HashKey) (*Location, bool) {
 	loc, ok := t.locations[key]
 	return loc, ok
 }
-
 func (t *Table) All() map[shared.HashKey]*Location {
+
 	return t.locations
 }

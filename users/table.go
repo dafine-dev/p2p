@@ -1,73 +1,71 @@
 package users
 
 import (
-	"crypto/sha1"
-	"math/big"
+	"math"
 	"p2p/shared"
 )
 
 type Table struct {
-	predecessor *User
+	Predecessor *User
 	Successor   *User
-	all         map[shared.Addr]*User
+	all         map[shared.HashId]*User
 	Current     *User
 }
 
 func StartTable(addr shared.Addr) *Table {
-	hasher := sha1.New()
-	hasher.Write(addr.Addr[:])
-	raw := hasher.Sum(nil)
-	current := &User{
-		Addr:  addr,
-		Id:    new(big.Int).SetBytes(raw),
-		RawId: [20]byte(raw),
+	current := New(addr)
+
+	all := make(map[shared.HashId]*User)
+
+	for i := 0; i < 7; i++ {
+		id := current.Id + uint(math.Pow(2, float64(i)))
+		id = id % shared.MaxId
+
+		all[id] = nil
 	}
 
 	return &Table{
-		all:       make(map[shared.Addr]*User),
-		Current:   current,
-		Successor: current,
+		all:         all,
+		Current:     current,
+		Successor:   current,
+		Predecessor: current,
 	}
 }
 
 func (t *Table) Owns(id shared.HashId) bool {
-	a := shared.Distance(t.Current.Id, t.Successor.Id)
-	b := shared.Distance(id, t.Successor.Id)
-	return b.Cmp(a) <= 0
+	return shared.Distance(id, t.Successor.Id) <= shared.Distance(t.Current.Id, t.Successor.Id)
 }
 
-func (t *Table) Nearest(key shared.HashId) *User {
-	minValue := shared.MaxId
-	var u *User
-
-	for _, user := range t.all {
-		if distance := shared.Distance(user.Id, key); distance.Cmp(minValue) <= 0 {
+func (t *Table) Nearest(id shared.HashId) *User {
+	u := t.Successor
+	for key, user := range t.all {
+		if user != nil && shared.Distance(key, id) < shared.Distance(key, u.Id) {
 			u = user
-			minValue = distance
 		}
 	}
 
 	return u
 }
 
+func (t *Table) Update(key shared.HashId, user *User) {
+	if _, in := t.all[key]; in {
+		t.all[key] = user
+	}
+}
+
 func (t *Table) IsPredecessor(user *User) bool {
-	newDistance := shared.Distance(user.Id, t.Current.Id)
-	currentDistance := shared.Distance(t.predecessor.Id, t.Current.Id)
-	return newDistance.Cmp(currentDistance) < 0
+	return shared.Distance(user.Id, t.Current.Id) <
+		shared.Distance(t.Predecessor.Id, t.Current.Id)
 }
 
 func (t *Table) IsSuccessor(user *User) bool {
-	if t.Successor == t.Current {
-		return true
-	}
-	a := shared.Distance(t.Current.Id, user.Id)
-	b := shared.Distance(t.Current.Id, t.Successor.Id)
-	return a.Cmp(b) < 0
+	return shared.Distance(t.Current.Id, user.Id) <
+		shared.Distance(t.Current.Id, t.Successor.Id)
 }
 
 func (t *Table) SetPredecessor(user *User) bool {
 	if t.IsPredecessor(user) {
-		t.predecessor = user
+		t.Predecessor = user
 		return true
 	}
 
@@ -77,7 +75,6 @@ func (t *Table) SetPredecessor(user *User) bool {
 func (t *Table) SetSuccessor(user *User) bool {
 	if t.IsSuccessor(user) {
 		t.Successor = user
-		t.Add(user)
 		return true
 	}
 
@@ -104,15 +101,10 @@ func (t *Table) SetCurrent(addr shared.Addr, name string) *User {
 	return current
 }
 
-func (t *Table) Add(user *User) {
-	t.all[user.Addr] = user
-}
+// func (t *Table) Add(user *User) {
+// 	t.all[] = user
+// }
 
-func (t *Table) All() []*User {
-	u := make([]*User, 0)
-	for _, user := range t.all {
-		u = append(u, user)
-	}
-
-	return u
+func (t *Table) All() map[shared.HashId]*User {
+	return t.all
 }
