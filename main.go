@@ -3,10 +3,12 @@ package main
 import (
 	"net/http"
 	"p2p/endpoints"
+	"p2p/shared"
 )
 
 func main() {
 
+	shared.CalculateAddr()
 	go endpoints.Start()
 
 	fileServer := http.FileServer(http.Dir("./"))

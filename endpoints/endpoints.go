@@ -56,7 +56,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Start() {
-	ACTIONS = actions.New(shared.LocalAddr(), "./server")
+	ACTIONS = actions.New(shared.LOCAL_ADDR, "./server")
 	go ACTIONS.Run(true)
 
 	ACTIONS.Connect()
