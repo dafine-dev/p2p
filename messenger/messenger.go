@@ -70,6 +70,7 @@ func (m *Messenger) writeLoop() {
 		command := <-m.outcoming
 		// log.Println("Writing UDP message")
 
+		log.Println(command.destAddr)
 		err := syscall.Sendto(m.socket, command.message, 0, &command.destAddr)
 		if err != nil {
 			fmt.Println("Falha ao enviar mensagem", err)
