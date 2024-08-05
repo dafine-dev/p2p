@@ -39,26 +39,19 @@ func ParseAddr(data ...int) Addr {
 }
 
 func LocalAddr() Addr {
-	var a Addr
-	ifaces, _ := net.Interfaces()
-	// handle err
-	for _, i := range ifaces {
-		addrs, _ := i.Addrs()
-		// handle err
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			a = Addr{
-				Addr: [4]byte(ip.To4()),
-				Port: PORT,
+
+	var addr Addr
+	addresses, _ := net.InterfaceAddrs()
+
+	for _, addr := range addresses {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return Addr{
+					Addr: [4]byte(ipnet.IP.To4()),
+					Port: PORT,
+				}
 			}
 		}
 	}
-
-	return a
+	return addr
 }
