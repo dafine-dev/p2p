@@ -59,8 +59,6 @@ func Start() {
 	ACTIONS = actions.New(shared.LocalAddr(), "./server")
 	go ACTIONS.Run(true)
 
-	fmt.Println(ACTIONS.Files())
-
 	ACTIONS.Connect()
 	http.HandleFunc("/ws", handler)
 	serverAddr := "localhost:8080"
