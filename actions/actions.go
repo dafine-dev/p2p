@@ -55,7 +55,7 @@ func (a *Actions) Run(tracking bool) {
 
 func (a *Actions) Connect() {
 	addr := shared.Addr{
-		Addr: [4]byte{127, 0, 0, 1},
+		Addr: [4]byte{192, 168, 18, 0},
 		Port: shared.PORT,
 	}
 	msg := messages.NewBeginJoin(a.userTable.Current)
