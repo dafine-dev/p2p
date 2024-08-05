@@ -81,7 +81,6 @@ func CalculateAddr() {
 			broadcastIP := make(net.IP, net.IPv4len)
 			ipv4 := ip.To4()
 			for i := range ipv4 {
-				fmt.Println(i, mask[i])
 				broadcastIP[i] = ip[i] | ^mask[i]
 			}
 
