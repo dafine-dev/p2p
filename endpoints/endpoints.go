@@ -56,7 +56,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Start() {
-	ACTIONS = actions.New(shared.ParseAddr(0, 0, 0, 0), "./server")
+	ACTIONS = actions.New(shared.LocalAddr(), "./server")
 	go ACTIONS.Run(true)
 
 	fmt.Println(ACTIONS.Files())

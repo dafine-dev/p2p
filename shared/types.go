@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"net"
 	"syscall"
 )
 
@@ -35,4 +36,29 @@ func ParseAddr(data ...int) Addr {
 		Addr: [4]byte{byte(data[0]), byte(data[1]), byte(data[2]), byte(data[3])},
 		Port: PORT,
 	}
+}
+
+func LocalAddr() Addr {
+	var a Addr
+	ifaces, _ := net.Interfaces()
+	// handle err
+	for _, i := range ifaces {
+		addrs, _ := i.Addrs()
+		// handle err
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			a = Addr{
+				Addr: [4]byte(ip.To4()),
+				Port: PORT,
+			}
+		}
+	}
+
+	return a
 }
