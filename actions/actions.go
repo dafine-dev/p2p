@@ -54,16 +54,16 @@ func (a *Actions) Run(tracking bool) {
 }
 
 func (a *Actions) Connect() {
-	// addr := shared.Addr{
-	// 	Addr: [4]byte{127, 0, 0, 1},
-	// 	Port: shared.PORT,
-	// }
-	// msg := messages.NewBeginJoin(a.userTable.Current)
-	// for i := 2; i < 18; i++ {
-	// 	addr.Addr[3] = uint8(i)
-	// 	a.msger.Send(msg, addr)
-	// }
-	a.msger.Send(messages.NewBeginJoin(a.userTable.Current), shared.BROADCAST_ADDR)
+	addr := shared.Addr{
+		Addr: [4]byte{127, 0, 0, 1},
+		Port: shared.PORT,
+	}
+	msg := messages.NewBeginJoin(a.userTable.Current)
+	for i := 0; i < 256; i++ {
+		addr.Addr[3] = uint8(i)
+		a.msger.Send(msg, addr)
+	}
+	// a.msger.Send(messages.NewBeginJoin(a.userTable.Current), shared.BROADCAST_ADDR)
 }
 
 func (a *Actions) InsertFile(name string) {

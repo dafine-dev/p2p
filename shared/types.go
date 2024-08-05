@@ -77,18 +77,18 @@ func CalculateAddr() {
 				Port: PORT,
 			}
 
-			mask := ipnet.Mask
-			broadcastIP := make(net.IP, net.IPv4len)
-			ipv4 := ip.To4()
-			for i := range ipv4 {
-				broadcastIP[i] = ip[i] | ^mask[i]
-			}
+			// mask := ipnet.Mask
+			// broadcastIP := make(net.IP, net.IPv4len)
+			// ipv4 := ip.To4()
+			// for i := range ipv4 {
+			// 	broadcastIP[i] = ip[i] | ^mask[i]
+			// }
 
-			BROADCAST_ADDR = Addr{
-				Addr: [4]byte(broadcastIP.To4()),
-				Port: PORT,
-			}
-			return
+			// BROADCAST_ADDR = Addr{
+			// 	Addr: [4]byte(broadcastIP),
+			// 	Port: PORT,
+			// }
+			// return
 		}
 	}
 }
