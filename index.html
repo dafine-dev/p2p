@@ -1,61 +1,124 @@
 <!DOCTYPE html>
 <html>
     <head>
-
     </head>
     <body>
-        <style>
-            .search {
-                flex-direction: column;
-                display: flex;
-                width: 100%;
-            }
+      <style>
 
-            input {
-                font-size: 48px;
-                margin: 16px;
-                border-top: 4px solid white;
-                border-left: 4px solid white;
-                padding: 8px;
-                background-color: transparent;
-                box-shadow: 4px 4px 10px 0px rgba(0, 0, 0, 0.1) inset, 
-                -2px -2px 10px 0px rgba(0, 0, 0, 0.1),
-                2px 2px 10px 0px rgba(0, 0, 0, 0.1);
-            }
+        body {
+            width: 100%;
+            margin: 0;
+            padding: 32px;
+        }
+        table, input, button {
+            margin-bottom: 32px;
+            font-size: 48px;
+            width: 100%;
+        }
+        table {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
 
-            .main-btn {
-                font-size: 48px;
-                margin: 16px;
-                padding: 8px 0px;
-                color: white;
-                border: 1px solid white;
-                background-color: rgb(24, 0, 59);
-                box-shadow: 3px 3px 6px 1px rgba(0, 0, 0, 0.2);
-                border-radius: 4px;
-            }
+        th {
+            background-color: black;
+            color: white;
+        }
 
-            table {
-                width: calc(100% - 32px);
-                margin: 16px;
-                background-color: black;
-                color: white;
-                box-shadow: 4px 4px 10px 1px rgba(0, 0, 0, 0.2);
-            }
-            table td{
-                font-size: 42px;
-                border-bottom: 3px solid yellow;
-            }
-        </style>
-        <table>
-            <tr>
-                <td>Nome do arquivo</td>
-                <!-- <td><button>Cancelar</button></td> -->
-            </tr>
-        </table>
-        <div class="search">
-            <input id="filename" placeholder="Nome do Arquivo:"/>
-            <button class="main-btn">Inserir</button>
-            <button class="main-btn">Pesquisar</button>
-        </div>
+        th, td {
+            padding: 16px;
+        }
+
+        table tr:nth-child(odd) {
+            background-color: #eee;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 16px;
+            border: 4px solid black;
+        }
+
+        button {
+            padding: 8px;
+            border: 3px solid black;
+        }
+      </style>
+      <table id="files">
+        <thead>
+          <tr>
+            <th>
+              Arquivos Baixados
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+      <table id="locations">
+        <thead>
+          <tr>
+            <th colspan="2">
+              Localizações
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+     
+      <input id="filename" placeholder="Digite o nome do arquivo:"/>
+      <button id="inserir">Inserir</button>
+      <button id="baixar">Baixar</button>
     </body>
+    <script>
+      function fillFiles(data) {
+          table = document.getElementById("files")
+          body = table.querySelector("tbody")
+          body.innerHTML = ""
+          data.forEach(element => {
+              name = element.split("/").pop()
+              body.innerHTML += `<tr><td><a href="file://${element}" download>${name}</td></tr>`
+          })
+      }
+
+      function fillLocations(data) {
+          table = document.getElementById("locations")
+          body = table.querySelector("tbody")
+          body.innerHTML = ""
+          data.forEach(element => {
+              if (element) {
+                  element = element.split("->")
+                  body.innerHTML += `<tr><td>${element[0]}</td><td>${element[1]}</td></tr>`
+              }
+          })
+      }
+     
+      var ws = new WebSocket("ws://localhost:8080/ws")
+      ws.onopen = () => {
+          console.log("conexão estabelecida")
+      }
+
+      ws.onmessage = (event) => {
+          let data = event.data.split(";")
+          if (data[0] == "Files") {
+              fillFiles(data.slice(1))
+          } else if (data[0] == "Locations") {
+              fillLocations(data.slice(1))
+          }
+      }
+
+      ws.onclose = () => {
+          console.log("conexão fechada")
+      }
+
+      document.getElementById("inserir").addEventListener("click", () => {
+          ws.send("INSERT;" + document.getElementById("filename").value)
+      })
+
+      document.getElementById("baixar").addEventListener("click", () => {
+          ws.send("SEARCH;" + document.getElementById("filename").value)
+      })
+    </script>
 </html>

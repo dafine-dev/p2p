@@ -13,8 +13,9 @@ type Manager struct {
 }
 
 func NewManager(path string) *Manager {
+	abs, _ := filepath.Abs(path)
 	return &Manager{
-		directory: path,
+		directory: abs,
 		all:       make(map[shared.HashKey]*File),
 	}
 }
@@ -61,4 +62,8 @@ func (m *Manager) SetUp() {
 			m.New(entry.Name())
 		}
 	}
+}
+
+func (m *Manager) All() map[shared.HashKey]*File {
+	return m.all
 }

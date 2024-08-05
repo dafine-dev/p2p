@@ -6,7 +6,6 @@ import (
 	"p2p/messenger"
 	"p2p/shared"
 	"p2p/users"
-	"time"
 )
 
 type Tracker struct {
@@ -14,8 +13,6 @@ type Tracker struct {
 }
 
 func (t *Tracker) Run(m *messenger.Messenger) {
-	time.Sleep(30 * time.Second)
-
 	for i := 0; i < 7; i++ {
 		id := t.UserTable.Current.Id + uint(math.Pow(2, float64(i)))
 		id = id % shared.MaxId

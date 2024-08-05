@@ -1,33 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"p2p/actions"
-	"p2p/shared"
-	"time"
+	"net/http"
+	"p2p/endpoints"
 )
 
 func main() {
 
-	wait := make(chan struct{})
-	actors := make([]*actions.Actions, 0)
-	for i := 2; i < 8; i++ {
-		a := actions.New(
-			shared.ParseAddr(127, 0, 0, i),
-			fmt.Sprintf("../p2p_test/server%d", i))
-		actors = append(actors, a)
-		a.Run(true)
-		a.Connect()
-		time.Sleep(time.Second)
-	}
+	go endpoints.Start()
 
-	time.Sleep(60 * time.Second)
-	for _, actor := range actors {
-		actor.PrintSuccessor()
-		actor.PrintUsers()
-	}
+	fileServer := http.FileServer(http.Dir("./"))
 
-	actors[0].InsertFile("arquivo2.txt")
-	actors[5].GetFile("arquivo2.txt")
-	<-wait
+	http.Handle("/", http.StripPrefix("/", fileServer))
+
+	http.ListenAndServe(":7000", nil)
 }

@@ -54,16 +54,16 @@ func (a *Actions) Run(tracking bool) {
 }
 
 func (a *Actions) Connect() {
-	addr := shared.Addr{
-		Addr: [4]byte{127, 0, 0, 1},
-		Port: shared.PORT,
-	}
-	msg := messages.NewBeginJoin(a.userTable.Current)
-	for i := 2; i < 18; i++ {
-		addr.Addr[3] = uint8(i)
-		a.msger.Send(msg, addr)
-	}
-	// a.msger.Send(messages.NewBeginJoin(a.userTable.Current), shared.BROADCAST_ADDR)
+	// addr := shared.Addr{
+	// 	Addr: [4]byte{127, 0, 0, 1},
+	// 	Port: shared.PORT,
+	// }
+	// msg := messages.NewBeginJoin(a.userTable.Current)
+	// for i := 2; i < 18; i++ {
+	// 	addr.Addr[3] = uint8(i)
+	// 	a.msger.Send(msg, addr)
+	// }
+	a.msger.Send(messages.NewBeginJoin(a.userTable.Current), shared.BROADCAST_ADDR)
 }
 
 func (a *Actions) InsertFile(name string) {
@@ -108,22 +108,25 @@ func (a *Actions) Leave() {
 	a.msger.Send(msg, succ.Addr)
 }
 
-func (a *Actions) FileTable() map[shared.HashKey]*files.Location {
-	return a.fileTable.All()
-}
+func (a *Actions) ListLocations() string {
+	var locations string
 
-func (a *Actions) PrintSuccessor() {
-	fmt.Println(
-		a.userTable.Predecessor.Id,
-		a.userTable.Current.Id,
-		a.userTable.Successor.Id)
-}
-
-func (a *Actions) PrintUsers() {
-	m := make([]string, 0)
-	for key, user := range a.userTable.All() {
-		m = append(m, fmt.Sprintf("| %d:%d |", user.Id, key))
+	for _, loc := range a.fileTable.All() {
+		ad := loc.Addr.Addr
+		addr := fmt.Sprintf("%d.%d.%d.%d", ad[0], ad[1], ad[2], ad[3])
+		locations += fmt.Sprintf("%d -> %s;", loc.Key, addr)
 	}
 
-	fmt.Println(m)
+	return locations
+}
+
+func (a *Actions) Files() string {
+	var files string
+	fmt.Println(a.fileManager.All())
+	for _, file := range a.fileManager.All() {
+		files += file.Name + ";"
+	}
+
+	fmt.Println(files)
+	return files
 }
