@@ -64,11 +64,11 @@ func (t *Transfer) Download(loc *files.Location) *stream {
 	}
 	conn, err := net.DialTCP("tcp", nil, &srcAddr)
 	if err != nil {
-		log.Println("Couldn't start download of file with key %s", loc.Key)
+		log.Printf("Couldn't start download of file with key %d\n", loc.Key)
 		return nil
 	}
 
-	n, err := conn.Write(messages.NewRequestFile(t.addr.IP, loc.Key))
+	_, err = conn.Write(messages.NewRequestFile(t.addr.IP, loc.Key))
 	if err != nil {
 		log.Println("Couldn't proceed with file donwload. Target rejected file request.")
 		conn.Close()
@@ -76,7 +76,7 @@ func (t *Transfer) Download(loc *files.Location) *stream {
 	}
 
 	answer := make([]byte, 1024)
-	n, err = conn.Read(answer)
+	n, err := conn.Read(answer)
 	if err != nil {
 		log.Println("Error reading target response to file request. Canceling download.")
 		conn.Close()

@@ -13,11 +13,8 @@ import (
 	"p2p/users"
 )
 
-func BROADCAST_ADDR() *net.UDPAddr {
-	return &net.UDPAddr{
-		IP:   []byte{255, 255, 255, 255},
-		Port: shared.PORT,
-	}
+func BROADCAST_ADDR() net.IP {
+	return []byte{255, 255, 255, 255}
 }
 
 type Actions struct {
@@ -90,7 +87,7 @@ func (a *Actions) GetFile(name string) {
 
 	nearest := a.userTable.Nearest(file.Id)
 	file.Status = files.SEARCHING
-	a.msger.Send(messages.NewLocateFile(a.userTable.Current.Addr, file.Key), nearest.IP)
+	a.msger.Send(messages.NewLocateFile(a.userTable.Current.IP, file.Key), nearest.IP)
 }
 
 func (a *Actions) Leave() {
@@ -101,10 +98,10 @@ func (a *Actions) Leave() {
 	msg := messages.NewLeave(user, succ,
 		a.fileTable.Between(user.Id, succ.Id)...)
 
-	a.msger.Send(msg, pred.Addr)
+	a.msger.Send(msg, pred.IP)
 
 	msg = messages.NewLeave(user, pred)
-	a.msger.Send(msg, succ.Addr)
+	a.msger.Send(msg, succ.IP)
 }
 
 func (a *Actions) FileTable() map[shared.HashKey]*files.Location {

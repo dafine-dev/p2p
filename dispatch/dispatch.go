@@ -80,12 +80,12 @@ func (d *Dispatch) OnBeginJoin(msg messages.Message) {
 			d.userTable.Current,
 			b...,
 		)
-		d.msger.Send(answer, data.OriginAddr())
+		d.msger.Send(answer, data.OriginIP())
 	}
 
 	if d.userTable.IsPredecessor(user) {
 		response := messages.NewAnswerSucJoin(d.userTable.Current)
-		d.msger.Send(response, data.OriginAddr())
+		d.msger.Send(response, data.OriginIP())
 	}
 }
 
@@ -94,18 +94,18 @@ func (d *Dispatch) OnAnswerPreJoin(msg messages.Message) {
 	data := messages.AnswerPreJoin(msg)
 	locs, ok := data.Locations()
 	if !ok {
-		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+		d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.IP), data.OriginIP())
 		return
 	}
 
 	if d.userTable.SetPredecessor(data.User()) {
 
 		d.fileTable.Add(locs...)
-		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
+		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginIP())
 		return
 	}
 
-	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.IP), data.OriginIP())
 }
 
 func (d *Dispatch) OnAnswerSucJoin(msg messages.Message) {
@@ -113,11 +113,11 @@ func (d *Dispatch) OnAnswerSucJoin(msg messages.Message) {
 	data := messages.AnswerSucJoin(msg)
 
 	if d.userTable.SetSuccessor(data.User()) {
-		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginAddr())
+		d.msger.Send(messages.NewConfirmJoin(d.userTable.Current), data.OriginIP())
 		return
 	}
 
-	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), data.OriginAddr())
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.IP), data.OriginIP())
 }
 
 func (d *Dispatch) OnConfirmJoin(msg messages.Message) {
@@ -146,13 +146,13 @@ func (d *Dispatch) OnInsertFile(msg messages.Message) {
 	}
 
 	nearest := d.userTable.Nearest(loc.Id)
-	d.msger.Send(msg, nearest.Addr)
+	d.msger.Send(msg, nearest.IP)
 }
 
 func (d *Dispatch) OnUnexpected(msg messages.Message) {
 	d.Log(msg)
 	log.Println(msg)
-	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.Addr), msg.OriginAddr())
+	d.msger.Send(messages.NewBrokenProtocol(d.userTable.Current.IP), msg.OriginIP())
 }
 
 func (d *Dispatch) OnLocateFile(msg messages.Message) {
@@ -165,10 +165,10 @@ func (d *Dispatch) OnLocateFile(msg messages.Message) {
 	_, found := d.fileManager.Find(key)
 	if found {
 		response := messages.NewFileLocated(
-			d.userTable.Current.Addr,
-			files.NewLocation(key, d.userTable.Current.Addr))
+			d.userTable.Current.IP,
+			files.NewLocation(key, d.userTable.Current.IP))
 
-		d.msger.Send(response, msg.OriginAddr())
+		d.msger.Send(response, msg.OriginIP())
 		return
 	}
 
@@ -177,28 +177,28 @@ func (d *Dispatch) OnLocateFile(msg messages.Message) {
 		loc, found := d.fileTable.Find(key)
 		if found {
 			response := messages.NewFileLocated(
-				d.userTable.Current.Addr,
-				files.NewLocation(key, loc.Addr))
-			d.msger.Send(response, msg.OriginAddr())
+				d.userTable.Current.IP,
+				files.NewLocation(key, loc.IP))
+			d.msger.Send(response, msg.OriginIP())
 			return
 		}
 
 		d.msger.Send(
-			messages.NewFileNotFound(d.userTable.Current.Addr, key),
-			msg.OriginAddr())
+			messages.NewFileNotFound(d.userTable.Current.IP, key),
+			msg.OriginIP())
 
 		return
 	}
 
 	nearest := d.userTable.Nearest(fileId)
-	d.msger.Send(msg, nearest.Addr)
+	d.msger.Send(msg, nearest.IP)
 }
 
 func (d *Dispatch) OnFileLocated(msg messages.Message) {
 	d.Log(msg)
 	data := messages.FileLocated(msg)
 
-	user := users.New(msg.OriginAddr())
+	user := users.New(msg.OriginIP())
 	d.userTable.Update(data.Id(), user)
 
 	file, found := d.fileManager.Find(data.Key())
@@ -213,7 +213,7 @@ func (d *Dispatch) OnFileNotFound(msg messages.Message) {
 	d.Log(msg)
 	data := messages.FileLocated(msg)
 
-	user := users.New(msg.OriginAddr())
+	user := users.New(msg.OriginIP())
 	d.userTable.Update(data.Id(), user)
 	file, found := d.fileManager.Find(data.Key())
 
@@ -242,9 +242,9 @@ func (d *Dispatch) OnLeave(msg messages.Message) {
 
 func (d *Dispatch) Log(msg messages.Message) {
 	log.Println(
-		d.userTable.Current.Addr.Addr,
+		d.userTable.Current.IP,
 		"receives:",
 		msg.Method().String(),
 		"from: ",
-		msg.OriginAddr().Addr)
+		msg.OriginIP())
 }
