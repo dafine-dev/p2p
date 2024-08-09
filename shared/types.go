@@ -1,11 +1,11 @@
 package shared
 
 import (
-	"syscall"
+	"net"
 )
 
 type Socket = int
-type Addr = syscall.SockaddrInet4
+type Addr = net.Addr
 type HashKey = byte
 type HashId = uint
 
@@ -21,18 +21,4 @@ func Distance(a HashId, b HashId) HashId {
 
 func IsBetween(a HashId, b HashId, c HashId) bool {
 	return Distance(a, c) < Distance(b, c)
-}
-
-func ReadAddr(data []byte) Addr {
-	return Addr{
-		Addr: [4]byte(data),
-		Port: PORT,
-	}
-}
-
-func ParseAddr(data ...int) Addr {
-	return Addr{
-		Addr: [4]byte{byte(data[0]), byte(data[1]), byte(data[2]), byte(data[3])},
-		Port: PORT,
-	}
 }

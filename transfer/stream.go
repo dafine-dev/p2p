@@ -2,26 +2,23 @@ package transfer
 
 import (
 	"log"
+	"net"
 	"p2p/files"
-	"p2p/shared"
 	"sync"
-	"syscall"
 )
 
 type stream struct {
 	bufferSize  int
-	sock        shared.Socket
+	conn        *net.TCPConn
 	file        *files.File
 	stopFlag    bool
 	bufferMutex sync.Mutex
 }
 
 func (s *stream) download() {
-	defer log.Println("finished downloading")
 	defer s.file.Close()
-	defer syscall.Close(s.sock)
+	defer s.conn.Close()
 
-	log.Println("download")
 	index := int64(0)
 	s.file.Create()
 	for {
@@ -30,7 +27,7 @@ func (s *stream) download() {
 		}
 
 		buffer := make([]byte, s.bufferSize)
-		n, err := syscall.Read(s.sock, buffer)
+		n, err := s.conn.Read(buffer)
 		if err != nil {
 			s.Stop()
 		}
@@ -45,11 +42,9 @@ func (s *stream) download() {
 }
 
 func (s *stream) upload() {
-	defer log.Println("finished uploading")
 	defer s.file.Close()
-	defer syscall.Close(s.sock)
+	defer s.conn.Close()
 
-	log.Println("upload")
 	// retries := 0
 	index := int64(0)
 	s.file.Open()
@@ -65,8 +60,9 @@ func (s *stream) upload() {
 			s.Stop()
 		}
 
-		n, err = syscall.Write(s.sock, buffer[:n])
+		n, err = s.conn.Write(buffer[:n])
 		if err != nil {
+			log.Println("Failed to write to UDP socket.")
 			return
 		}
 

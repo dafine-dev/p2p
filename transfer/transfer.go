@@ -1,12 +1,11 @@
 package transfer
 
 import (
-	"fmt"
 	"log"
+	"net"
 	"p2p/files"
 	"p2p/messages"
 	"p2p/shared"
-	"syscall"
 )
 
 type Transfer struct {
@@ -15,88 +14,79 @@ type Transfer struct {
 	downloads     map[shared.HashKey]*stream
 	uploads       map[shared.HashKey]*stream
 	fileManager   *files.Manager
-	addr          shared.Addr
+	addr          *net.TCPAddr
 }
 
 func New(downloadLimit, uploadLimit int,
-	fileManager *files.Manager, addr shared.Addr) *Transfer {
+	fileManager *files.Manager, ip net.IP) *Transfer {
 
+	addr := net.TCPAddr{
+		IP:   ip,
+		Port: shared.PORT,
+	}
 	return &Transfer{
 		downloadLimit: downloadLimit,
 		uploadLimit:   uploadLimit,
 		downloads:     make(map[shared.HashKey]*stream),
 		uploads:       make(map[shared.HashKey]*stream),
 		fileManager:   fileManager,
-		addr:          addr,
+		addr:          &addr,
 	}
 }
 
 func (t *Transfer) Run() {
-	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
+	listener, err := net.ListenTCP("tcp", t.addr)
+
 	if err != nil {
-		log.Println("Couldn't start TCP Socket")
-		panic(err)
-	}
-
-	if err := syscall.Bind(sock, &t.addr); err != nil {
-		log.Println("Couldn't bind TCP socket")
-		panic(err)
-	}
-
-	if err := syscall.Listen(sock, syscall.SOMAXCONN); err != nil {
-		log.Println("Couldn't listen to incoming TCP cnnections")
-		panic(err)
+		log.Println("Couldn't start File transfering server. TCP socket failed to open.")
+		return
 	}
 
 	for {
-		conn, addr, err := syscall.Accept(sock)
+		conn, err := listener.AcceptTCP()
 		if err != nil {
-			panic(err)
+			log.Printf("Error establising TCP connection from %s\n", conn.RemoteAddr())
 		}
 
 		if len(t.downloads) == t.downloadLimit {
-			syscall.Close(conn)
+			conn.Close()
 			continue
 		}
 
-		go t.Upload(conn, addr)
+		go t.Upload(conn)
 	}
 }
 
 func (t *Transfer) Download(loc *files.Location) *stream {
-	defer fmt.Println("hmmmmm")
-	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
+	srcAddr := net.TCPAddr{
+		IP:   loc.IP,
+		Port: shared.PORT,
+	}
+	conn, err := net.DialTCP("tcp", nil, &srcAddr)
 	if err != nil {
-		fmt.Println(err)
-		syscall.Close(sock)
+		log.Println("Couldn't start download of file with key %s", loc.Key)
 		return nil
 	}
 
-	fmt.Println(loc.Addr.Addr)
-	if err := syscall.Connect(sock, &loc.Addr); err != nil {
-		fmt.Println("leitura")
-		fmt.Println(err)
-		syscall.Close(sock)
-		return nil
-	}
-
-	_, err = syscall.Write(sock, messages.NewRequestFile(t.addr, loc.Key))
+	n, err := conn.Write(messages.NewRequestFile(t.addr.IP, loc.Key))
 	if err != nil {
-		fmt.Println(err)
+		log.Println("Couldn't proceed with file donwload. Target rejected file request.")
+		conn.Close()
 		return nil
 	}
 
 	answer := make([]byte, 1024)
-	n, err := syscall.Read(sock, answer)
+	n, err = conn.Read(answer)
 	if err != nil {
-		fmt.Println(err)
+		log.Println("Error reading target response to file request. Canceling download.")
+		conn.Close()
 		return nil
 	}
 
 	if messages.Message(answer[:n]).Method() != messages.FILE {
-		syscall.Write(sock, messages.NewBrokenProtocol(t.addr))
-		syscall.Close(sock)
-		fmt.Println("aaaaaa")
+		conn.Write(messages.NewBrokenProtocol(t.addr.IP))
+		conn.Close()
+		log.Println("Target answered with wrong message. Closing connection.")
 		return nil
 	}
 
@@ -106,28 +96,28 @@ func (t *Transfer) Download(loc *files.Location) *stream {
 		bufferSize: DEFAULT_BUFFER_SIZE,
 		file:       file,
 		stopFlag:   false,
-		sock:       sock,
+		conn:       conn,
 	}
 
-	fmt.Println("testando")
 	go s.download()
 	return s
 }
 
-func (t *Transfer) Upload(sock shared.Socket, addr syscall.Sockaddr) {
-
-	fmt.Println("recusandox")
+func (t *Transfer) Upload(conn *net.TCPConn) {
 	buffer := make([]byte, 1024)
 
-	n, err := syscall.Read(sock, buffer)
+	n, err := conn.Read(buffer)
 	if err != nil {
+		log.Println("Couldn't read from incoming TCP connection. Closing it.")
+		conn.Close()
 		return
 	}
 
 	msg := buffer[:n]
 	if messages.Message(msg).Method() != messages.REQUEST_FILE {
-		syscall.Write(sock, messages.NewBrokenProtocol(t.addr))
-		syscall.Close(sock)
+		conn.Write(messages.NewBrokenProtocol(t.addr.IP))
+		conn.Close()
+		log.Println("Target opened a TCP connection to not request file. Closing it.")
 		return
 	}
 
@@ -135,13 +125,15 @@ func (t *Transfer) Upload(sock shared.Socket, addr syscall.Sockaddr) {
 	file, found := t.fileManager.Find(key)
 
 	if !found {
-		syscall.Write(sock, messages.NewFileNotFound(t.addr, key))
-		syscall.Close(sock)
+		conn.Write(messages.NewFileNotFound(t.addr.IP, key))
+		conn.Close()
 		return
 	}
 
-	_, err = syscall.Write(sock, messages.NewGetFile(t.addr, key))
+	_, err = conn.Write(messages.NewGetFile(t.addr.IP, key))
 	if err != nil {
+		log.Println("Error trying to tranfer file. Close the connection")
+		conn.Close()
 		return
 	}
 
@@ -150,7 +142,7 @@ func (t *Transfer) Upload(sock shared.Socket, addr syscall.Sockaddr) {
 		file:       file,
 		bufferSize: DEFAULT_BUFFER_SIZE,
 		stopFlag:   false,
-		sock:       sock,
+		conn:       conn,
 	}
 
 	t.uploads[key] = s

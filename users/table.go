@@ -2,6 +2,7 @@ package users
 
 import (
 	"math"
+	"net"
 	"p2p/shared"
 )
 
@@ -12,8 +13,8 @@ type Table struct {
 	Current     *User
 }
 
-func StartTable(addr shared.Addr) *Table {
-	current := New(addr)
+func StartTable(ip net.IP) *Table {
+	current := New(ip)
 
 	all := make(map[shared.HashId]*User)
 
@@ -95,8 +96,8 @@ func (t *Table) SetSuccessor(user *User) bool {
 // 	return new_user
 // }
 
-func (t *Table) SetCurrent(addr shared.Addr, name string) *User {
-	current := New(addr)
+func (t *Table) SetCurrent(ip net.IP, name string) *User {
+	current := New(ip)
 	t.Current = current
 	return current
 }

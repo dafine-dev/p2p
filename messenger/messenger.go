@@ -1,40 +1,34 @@
 package messenger
 
 import (
-	"fmt"
 	"log"
+	"net"
 	"p2p/messages"
 	"p2p/shared"
-	"syscall"
 )
 
 type Messenger struct {
-	socket    shared.Socket
+	conn      *net.UDPConn
 	incoming  chan messages.Message
 	outcoming chan command
-	addr      shared.Addr
+	ip        net.IP
 }
 
-func New(addr shared.Addr) *Messenger {
-	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-	if err != nil {
-		log.Println("Couldn't start")
-		panic(err)
+func New(ip net.IP) *Messenger {
+	addr := net.UDPAddr{
+		IP:   ip,
+		Port: shared.PORT,
 	}
-
-	err = syscall.SetsockoptInt(sock, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+	conn, err := net.ListenUDP("udp", &addr)
 	if err != nil {
-		log.Println("Couldn't enable broadcast in UDP socket.")
-		panic(err)
+		log.Println("Couldn't start UDP listening socket.")
+		return nil
 	}
-
-	syscall.Bind(sock, &addr)
 
 	return &Messenger{
-		socket:    sock,
+		conn:      conn,
 		incoming:  make(chan messages.Message),
 		outcoming: make(chan command),
-		addr:      addr,
 	}
 }
 
@@ -46,18 +40,13 @@ func (m *Messenger) Run() {
 func (m *Messenger) listenLoop() {
 	for {
 		buffer := make([]byte, 1024)
-		n, addr, err := syscall.Recvfrom(m.socket, buffer[:], 0)
-
+		n, addr, err := m.conn.ReadFromUDP(buffer)
 		if err != nil {
-			panic(err)
-		}
-
-		addrI4, ok := addr.(*syscall.SockaddrInet4)
-		if !ok {
+			log.Println("Couldn't read message from UDP socket.")
 			continue
 		}
 
-		if addrI4.Addr == m.addr.Addr {
+		if addr.IP.Equal(m.ip) {
 			continue
 		}
 
@@ -70,16 +59,22 @@ func (m *Messenger) writeLoop() {
 		command := <-m.outcoming
 		// log.Println("Writing UDP message")
 
-		err := syscall.Sendto(m.socket, command.message, 0, &command.destAddr)
+		_, err := m.conn.WriteTo(command.message, command.destAddr)
 		if err != nil {
-			fmt.Println("Falha ao enviar mensagem", err)
+			log.Printf("Failed to send message %s to %s\n",
+				command.message.Method().String(),
+				command.destAddr.String())
 			continue
 		}
 	}
 }
 
-func (m *Messenger) Send(msg messages.Message, to shared.Addr) {
-	m.outcoming <- command{message: msg, destAddr: to}
+func (m *Messenger) Send(msg messages.Message, to net.IP) {
+	addr := net.UDPAddr{
+		IP:   to,
+		Port: shared.PORT,
+	}
+	m.outcoming <- command{message: msg, destAddr: &addr}
 }
 
 func (m *Messenger) Read() messages.Message {

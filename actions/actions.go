@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"net"
 	"p2p/dispatch"
 	"p2p/files"
 	"p2p/messages"
@@ -11,6 +12,13 @@ import (
 	"p2p/transfer"
 	"p2p/users"
 )
+
+func BROADCAST_ADDR() *net.UDPAddr {
+	return &net.UDPAddr{
+		IP:   []byte{255, 255, 255, 255},
+		Port: shared.PORT,
+	}
+}
 
 type Actions struct {
 	msger       *messenger.Messenger
@@ -22,14 +30,14 @@ type Actions struct {
 	trcker      *tracker.Tracker
 }
 
-func New(addr shared.Addr, directory string) *Actions {
-	userTable := users.StartTable(addr)
+func New(ip net.IP, directory string) *Actions {
+	userTable := users.StartTable(ip)
 	fileManager := files.NewManager(directory)
 	fileManager.SetUp()
 
-	m := messenger.New(addr)
+	m := messenger.New(ip)
 	f := files.NewTable()
-	t := transfer.New(15, 15, fileManager, addr)
+	t := transfer.New(15, 15, fileManager, ip)
 	d := dispatch.New(m, t, userTable, fileManager, f)
 	tr := &tracker.Tracker{UserTable: userTable}
 
@@ -54,20 +62,11 @@ func (a *Actions) Run(tracking bool) {
 }
 
 func (a *Actions) Connect() {
-	addr := shared.Addr{
-		Addr: [4]byte{127, 0, 0, 1},
-		Port: shared.PORT,
-	}
-	msg := messages.NewBeginJoin(a.userTable.Current)
-	for i := 2; i < 18; i++ {
-		addr.Addr[3] = uint8(i)
-		a.msger.Send(msg, addr)
-	}
-	// a.msger.Send(messages.NewBeginJoin(a.userTable.Current), shared.BROADCAST_ADDR)
+	a.msger.Send(messages.NewBeginJoin(a.userTable.Current), BROADCAST_ADDR())
 }
 
 func (a *Actions) InsertFile(name string) {
-	addr := a.userTable.Current.Addr
+	addr := a.userTable.Current.IP
 	file := a.fileManager.Get(name)
 	loc := files.NewLocation(file.Key, addr)
 
@@ -77,7 +76,7 @@ func (a *Actions) InsertFile(name string) {
 	}
 
 	nearest := a.userTable.Nearest(file.Id)
-	a.msger.Send(messages.NewInsertFile(addr, loc), nearest.Addr)
+	a.msger.Send(messages.NewInsertFile(addr, loc), nearest.IP)
 }
 
 func (a *Actions) GetFile(name string) {
@@ -91,7 +90,7 @@ func (a *Actions) GetFile(name string) {
 
 	nearest := a.userTable.Nearest(file.Id)
 	file.Status = files.SEARCHING
-	a.msger.Send(messages.NewLocateFile(a.userTable.Current.Addr, file.Key), nearest.Addr)
+	a.msger.Send(messages.NewLocateFile(a.userTable.Current.Addr, file.Key), nearest.IP)
 }
 
 func (a *Actions) Leave() {

@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"net"
 	"p2p/files"
 	"p2p/shared"
 )
@@ -26,36 +27,36 @@ var LocateFile = file_message
 var FileNotFound = file_message
 var GetFile = file_message
 
-func new_file_message(addr shared.Addr, key shared.HashKey, method Code) Message {
+func new_file_message(ip net.IP, key shared.HashKey, method Code) Message {
 	msg := make([]byte, 0)
 	msg = append(msg, byte(method))
-	msg = append(msg, addr.Addr[:]...)
+	msg = append(msg, ip...)
 	msg = append(msg, key)
 	return msg
 }
 
-func NewRequestFile(addr shared.Addr, key shared.HashKey) Message {
-	return new_file_message(addr, key, REQUEST_FILE)
+func NewRequestFile(ip net.IP, key shared.HashKey) Message {
+	return new_file_message(ip, key, REQUEST_FILE)
 }
 
-func NewLocateFile(addr shared.Addr, key shared.HashKey) Message {
-	return new_file_message(addr, key, LOCATE_FILE)
+func NewLocateFile(ip net.IP, key shared.HashKey) Message {
+	return new_file_message(ip, key, LOCATE_FILE)
 }
 
-func NewGetFile(addr shared.Addr, key shared.HashKey) Message {
-	return new_file_message(addr, key, FILE)
+func NewGetFile(ip net.IP, key shared.HashKey) Message {
+	return new_file_message(ip, key, FILE)
 }
 
-func NewFileNotFound(addr shared.Addr, key shared.HashKey) Message {
-	return new_file_message(addr, key, FILE_NOT_FOUND)
+func NewFileNotFound(ip net.IP, key shared.HashKey) Message {
+	return new_file_message(ip, key, FILE_NOT_FOUND)
 }
 
 type locFile struct {
 	fileMessage
 }
 
-func (f *locFile) LocationAddr() shared.Addr {
-	return shared.ReadAddr(f.Message[6:10])
+func (f *locFile) LocationAddr() net.IP {
+	return net.IP(f.Message[6:10])
 }
 
 func (f *locFile) Location() *files.Location {
@@ -66,9 +67,9 @@ func loc_file(msg Message) *locFile {
 	return &locFile{fileMessage: fileMessage{Message: msg}}
 }
 
-func new_loc_file(addr shared.Addr, key shared.HashKey, locationAddr shared.Addr, method Code) Message {
-	msg := new_file_message(addr, key, method)
-	msg = append(msg, locationAddr.Addr[:]...)
+func new_loc_file(ip net.IP, key shared.HashKey, locationIP net.IP, method Code) Message {
+	msg := new_file_message(ip, key, method)
+	msg = append(msg, locationIP...)
 	return msg
 }
 
@@ -80,10 +81,10 @@ func FileLocated(msg Message) *locFile {
 	return loc_file(msg)
 }
 
-func NewInsertFile(addr shared.Addr, loc *files.Location) Message {
-	return new_loc_file(addr, loc.Key, loc.Addr, INSERT_FILE)
+func NewInsertFile(ip net.IP, loc *files.Location) Message {
+	return new_loc_file(ip, loc.Key, loc.IP, INSERT_FILE)
 }
 
-func NewFileLocated(addr shared.Addr, loc *files.Location) Message {
-	return new_loc_file(addr, loc.Key, loc.Addr, FILE_LOCATED)
+func NewFileLocated(ip net.IP, loc *files.Location) Message {
+	return new_loc_file(ip, loc.Key, loc.IP, FILE_LOCATED)
 }

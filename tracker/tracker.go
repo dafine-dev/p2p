@@ -14,20 +14,22 @@ type Tracker struct {
 }
 
 func (t *Tracker) Run(m *messenger.Messenger) {
-	time.Sleep(30 * time.Second)
+	for {
+		time.Sleep(30 * time.Second)
 
-	for i := 0; i < 7; i++ {
-		id := t.UserTable.Current.Id + uint(math.Pow(2, float64(i)))
-		id = id % shared.MaxId
+		for i := 0; i < 7; i++ {
+			id := t.UserTable.Current.Id + uint(math.Pow(2, float64(i)))
+			id = id % shared.MaxId
 
-		if t.UserTable.Owns(id) {
-			t.UserTable.Update(id, t.UserTable.Current)
-			continue
+			if t.UserTable.Owns(id) {
+				t.UserTable.Update(id, t.UserTable.Current)
+				continue
+			}
+
+			msg := messages.NewLocateFile(t.UserTable.Current.IP, byte(id))
+			nearest := t.UserTable.Nearest(id)
+			m.Send(msg, nearest.IP)
+			// time.Sleep(5 * time.Second)
 		}
-
-		msg := messages.NewLocateFile(t.UserTable.Current.Addr, byte(id))
-		nearest := t.UserTable.Nearest(id)
-		m.Send(msg, nearest.Addr)
-		// time.Sleep(5 * time.Second)
 	}
 }

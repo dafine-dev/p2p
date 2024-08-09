@@ -1,6 +1,8 @@
 package messages
 
-import "p2p/shared"
+import (
+	"net"
+)
 
 type Code uint8
 
@@ -42,9 +44,6 @@ func (m Message) Method() Code {
 	return Code(m[0])
 }
 
-func (m Message) OriginAddr() shared.Addr {
-	return shared.Addr{
-		Addr: [4]byte(m[1:5]),
-		Port: shared.PORT,
-	}
+func (m Message) OriginIP() net.IP {
+	return net.IP(m[1:5])
 }

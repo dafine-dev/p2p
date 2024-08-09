@@ -2,22 +2,23 @@ package users
 
 import (
 	"crypto/sha1"
+	"net"
 	"p2p/shared"
 )
 
 type User struct {
-	Addr  shared.Addr
+	IP    net.IP
 	Id    shared.HashId
 	RawId shared.HashKey
 }
 
-func New(addr shared.Addr) *User {
+func New(ip net.IP) *User {
 	hasher := sha1.New()
-	hasher.Write(addr.Addr[:])
+	hasher.Write(ip)
 	key := hasher.Sum(nil)
 
 	return &User{
-		Addr:  addr,
+		IP:    ip,
 		RawId: shared.HashKey(key[0]),
 		Id:    uint(key[0]),
 	}

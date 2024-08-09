@@ -1,10 +1,12 @@
 package messages
 
-import "p2p/shared"
+import (
+	"net"
+)
 
-func NewBrokenProtocol(addr shared.Addr) Message {
+func NewBrokenProtocol(ip net.IP) Message {
 	msg := make([]byte, 0)
 	msg = append(msg, byte(BROKEN_PROTOCOL))
-	msg = append(msg, addr.Addr[:]...)
+	msg = append(msg, ip...)
 	return msg
 }

@@ -1,20 +1,21 @@
 package files
 
 import (
+	"net"
 	"p2p/shared"
 )
 
 type Location struct {
-	Key  shared.HashKey
-	Id   shared.HashId
-	Addr shared.Addr
+	Key shared.HashKey
+	Id  shared.HashId
+	IP  net.IP
 }
 
-func NewLocation(key shared.HashKey, addr shared.Addr) *Location {
+func NewLocation(key shared.HashKey, ip net.IP) *Location {
 	return &Location{
-		Key:  key,
-		Id:   uint(key),
-		Addr: addr,
+		Key: key,
+		Id:  uint(key),
+		IP:  ip,
 	}
 }
 

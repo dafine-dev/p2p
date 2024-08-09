@@ -2,6 +2,7 @@ package messages
 
 import (
 	"fmt"
+	"net"
 	"p2p/files"
 	"p2p/shared"
 	"p2p/users"
@@ -12,7 +13,7 @@ type join struct {
 }
 
 func (j *join) User() *users.User {
-	return users.New(j.OriginAddr())
+	return users.New(j.OriginIP())
 }
 
 type leave struct {
@@ -20,7 +21,7 @@ type leave struct {
 }
 
 func (j *leave) Successor() *users.User {
-	return users.New(shared.ReadAddr(j.Message[5:9]))
+	return users.New(net.IP(j.Message[5:9]))
 }
 
 func (j *leave) Locations() ([]*files.Location, bool) {
@@ -34,8 +35,8 @@ func (j *leave) Locations() ([]*files.Location, bool) {
 
 		for i := 9; i < length; i += 5 {
 			loc := &files.Location{
-				Key:  shared.HashKey(j.Message[i]),
-				Addr: shared.ReadAddr(j.Message[i+1 : i+5]),
+				Key: shared.HashKey(j.Message[i]),
+				IP:  net.IP(j.Message[i+1 : i+5]),
 			}
 			locs = append(locs, loc)
 		}
@@ -61,7 +62,7 @@ func Leave(msg Message) *leave {
 func new_join(user *users.User, method Code) Message {
 	msg := make([]byte, 0)
 	msg = append(msg, byte(method))
-	msg = append(msg, user.Addr.Addr[:]...)
+	msg = append(msg, user.IP...)
 	return msg
 }
 
@@ -71,10 +72,10 @@ func NewBeginJoin(user *users.User) Message {
 
 func NewLeave(user, succ *users.User, locs ...*files.Location) Message {
 	msg := new_join(user, LEAVE)
-	msg = append(msg, succ.Addr.Addr[:]...)
+	msg = append(msg, succ.IP...)
 	for _, loc := range locs {
 		msg = append(msg, loc.Key)
-		msg = append(msg, loc.Addr.Addr[:]...)
+		msg = append(msg, loc.IP...)
 	}
 
 	return msg
@@ -103,8 +104,8 @@ func (j *answerPreJoin) Locations() ([]*files.Location, bool) {
 
 		for i := 5; i < length; i += 5 {
 			loc := &files.Location{
-				Key:  shared.HashKey(j.Message[i]),
-				Addr: shared.ReadAddr(j.Message[i+1 : i+5]),
+				Key: shared.HashKey(j.Message[i]),
+				IP:  net.IP(j.Message[i+1 : i+5]),
 			}
 			locs = append(locs, loc)
 		}
@@ -124,7 +125,7 @@ func NewAnswerPreJoin(user *users.User, locs ...*files.Location) Message {
 	msg := new_join(user, ANSWER_PRE_JOIN)
 	for _, loc := range locs {
 		msg = append(msg, loc.Key)
-		msg = append(msg, loc.Addr.Addr[:]...)
+		msg = append(msg, loc.IP...)
 	}
 
 	return msg
